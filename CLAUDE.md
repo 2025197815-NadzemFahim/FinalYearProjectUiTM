@@ -2,19 +2,50 @@
 
 Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 
-## Architecture
-- Layer 1: stacking ensemble (XGBoost + Random Forest base learners, LightGBM meta-learner) wrapped in MultiOutputClassifier, trained on BRFSS 2015 (253,680 rows, 3-class diabetes health indicators)
-- Layer 2: disease-specific models trained on separate datasets
-- Class imbalance handled with SMOTE-Tomek
-- Backend: FastAPI loads saved models (joblib) and serves predictions
+## Architecture (matches the finalised proposal)
+- Every model is a stacking ensemble: **XGBoost + Random Forest + KNN base learners → LightGBM meta-learner**
+  - KNN is the only base learner wrapped with a StandardScaler (distance-based); trees need no scaling
+  - Implemented as `ml.stacking.StackedEnsemble` (custom, not sklearn's StackingClassifier) so that
+    SMOTE-Tomek runs *inside* each CV fold → out-of-fold predictions are leak-free
+  - 80:20 stratified train/test split, 5-fold CV for out-of-fold meta-features
+- Layer 1 (Quick Prediction): BRFSS 2015, 253,680 rows, 19 features, three targets:
+  `Diabetes_012` (3-class), `HeartDiseaseorAttack`, `Stroke`. This is ONE model ("Model 1"):
+  `MultiOutputClassifier(StackedEnsemble)` saved as `ml/models/layer1_general.joblib`. One
+  `predict_proba` call returns a list of 3 probability arrays in `BRFSS_TARGETS` order. Internally it
+  holds one ensemble per target (LightGBM has no multi-output, and SMOTE-Tomek rebalances one target at
+  a time). The 80:20 split is stratified on the combination of all three labels.
+- Total trained models: 4 = 1 (Layer 1) + 3 (Layer 2, one per disease)
+  The diabetes_012 CSV already has all three targets; it is row-identical to the heart-disease CSV,
+  so no merge is needed.
+- Layer 2 (Deep-Check): heart (UCI, 920 rows), stroke (5,110), diabetes (100,000) — trained separately,
+  never combined with each other or with BRFSS
+- SMOTE-Tomek is conditional (on for BRFSS, stroke, diabetes; off for heart). Minority classes are raised
+  to 30% of the majority (`MINORITY_RATIO`), not 1:1
+- Backend: FastAPI loads saved models (joblib) and serves predictions; includes the clinical input
+  conversion layer (FR-07) that maps real-world inputs to BRFSS codes
 - Mobile: Flutter app with Firebase Auth + Firestore
+- Feature lists in `ml/config.py` are the contract between models and app forms. Change one → retrain
+  that model and update the matching app form and `backend/app/schemas.py`
 
 ## Repo layout
-- `ml/` notebooks, training scripts, saved models
-- `backend/` FastAPI app
+- `ml/config.py` paths, feature contracts, hyperparameters (single source of truth)
+- `ml/data.py` loading/cleaning; `prepare_features` is shared with the backend
+- `ml/stacking.py` the ensemble; `ml/evaluate.py` metrics; `ml/train.py` training CLI
+- `ml/models/`, `ml/reports/` saved models and metrics JSON (gitignored)
+- `backend/app/` FastAPI app (`main.py`, `schemas.py`, `conversion.py`); `backend/tests/test_api.py`
 - `mobile/` Flutter app (not created yet)
-- `data/raw/` original datasets, never edit by hand (gitignored)
+- `data/raw/brfss/`, `data/raw/layer2/` original datasets, never edit by hand (gitignored)
 - `data/processed/` cleaned data written by notebooks (gitignored)
+- `docs/CODING_GUIDE.md` step-by-step plan for the ML work
+
+## Commands (repo root, venv active)
+- Train: `python -m ml.train --layer1` and `python -m ml.train --layer2 all`
+- Quick dev run: add `--sample 900` (saves `*_dev900` models, used by the API test)
+- API: `uvicorn backend.app.main:app --reload`, docs at http://127.0.0.1:8000/docs
+- API test: `python -m backend.tests.test_api`
+- Architecture check: `python -m ml.tests.verify_architecture` (~1 min, 17 checks). Proves the code
+  matches Figure 3.8 (in-fold SMOTE-Tomek, never on test, XGB+RF+KNN→LightGBM, Model 1 = one model).
+  Rerun after any change to `ml/stacking.py`, `ml/train.py` or `ml/config.py`
 
 ## Environment (ALREADY SET UP, do not reinstall)
 - OS: Windows 11, PowerShell. Repo at `C:\fyp\FinalYearProjectUiTM`
@@ -31,7 +62,8 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Git identity configured, remote is on GitHub (private)
 
 ## Not done yet
-- BRFSS and Layer 2 datasets not yet downloaded into `data/raw/`
+- Full training run (only `--sample 900` dev models exist so far)
+- Firestore persistence of deep-check results (TODO in `backend/app/main.py`)
 - `mobile/` not created (`flutter create mobile` comes later), so `flutterfire configure` not run
 - Firebase project not created in the console
 - No Android phone or emulator connected yet
@@ -43,9 +75,20 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Never commit `serviceAccountKey.json`, datasets, or model files over 100 MB
 - Keep notebooks numbered: `01_eda_brfss.ipynb`, `02_preprocessing.ipynb`, and so on
 
+## Known issues / decisions pending
+- Heart dataset on disk is the 920-row UCI version (target `num` 0-4 → binarised to num > 0),
+  not the 1,025-row version described in the proposal §3.4.2.1. `slope`, `ca`, `thal` dropped
+  (34/66/53% missing). The proposal text needs updating to match
+- The meta-learner uses `class_weight="balanced"` when SMOTE-Tomek is on (recall priority), so
+  `predict_proba` output is NOT a calibrated real-world probability. Decide whether to calibrate
+  before showing "risk %" in the app
+- Diabetes_012 class 1 (prediabetes) is 1.8% of rows and hard to separate; macro scores will be low
+- App forms in the proposal (Fig 3.18, data dictionary) collect fewer fields than `ml/config.py`
+  feature lists; forms must match the contract
+
 ## Current status
-Week 2 of the semester. Environment setup is complete. Next task: download BRFSS
-into `data/raw/` and start EDA (class distribution first).
+Week 2. Environment done, datasets in `data/raw/`, full ML pipeline + backend written and
+smoke-tested on `--sample 900`. Next: full training run, then EDA notebook `01_eda_brfss.ipynb`.
 
 ## Preferences
 - Reply in English only
