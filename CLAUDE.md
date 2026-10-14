@@ -24,6 +24,11 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Backend: FastAPI loads saved models (joblib) and serves predictions; includes the clinical input
   conversion layer (FR-07) that maps real-world inputs to BRFSS codes
 - Mobile: Flutter app with Firebase Auth + Firestore
+- Database (Figure 3.14 ERD, see `docs/DATABASE.md`): Firestore `users/{uid}` (User) with subcollection
+  `deepCheckResults/{resultID}` (DeepCheckResult); DiseaseInput + Heart/Stroke/DiabetesInput are an
+  embedded `diseaseInput` map. App writes own profile + reads own history directly (security rules);
+  only the backend (Admin SDK) writes results. Quick predictions are never stored.
+  Developed on the local Firebase Emulator (project `demo-fyp-chronic`); no real project yet
 - Feature lists in `ml/config.py` are the contract between models and app forms. Change one → retrain
   that model and update the matching app form and `backend/app/schemas.py`
 
@@ -32,17 +37,28 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - `ml/data.py` loading/cleaning; `prepare_features` is shared with the backend
 - `ml/stacking.py` the ensemble; `ml/evaluate.py` metrics; `ml/train.py` training CLI
 - `ml/models/`, `ml/reports/` saved models and metrics JSON (gitignored)
-- `backend/app/` FastAPI app (`main.py`, `schemas.py`, `conversion.py`); `backend/tests/test_api.py`
+- `backend/app/` FastAPI app (`main.py`, `schemas.py`, `conversion.py`, `db.py` = all Firestore access,
+  `auth.py` = ID-token verification); `backend/db_tool.py` DB CLI; tests in `backend/tests/`
+- `firebase/` emulator config, `firestore.rules`, `firestore.indexes.json`; local data in
+  `firebase/emulator-data/` (gitignored)
 - `mobile/` Flutter app (not created yet)
 - `data/raw/brfss/`, `data/raw/layer2/` original datasets, never edit by hand (gitignored)
 - `data/processed/` cleaned data written by notebooks (gitignored)
-- `docs/CODING_GUIDE.md` step-by-step plan for the ML work
+- `docs/CODING_GUIDE.md` step-by-step plan for the ML work; `docs/DATABASE.md` database guide
 
 ## Commands (repo root, venv active)
 - Train: `python -m ml.train --layer1` and `python -m ml.train --layer2 all`
 - Quick dev run: add `--sample 900` (saves `*_dev900` models, used by the API test)
 - API: `uvicorn backend.app.main:app --reload`, docs at http://127.0.0.1:8000/docs
 - API test: `python -m backend.tests.test_api`
+- Emulators: `cd firebase` → `firebase emulators:start --import ./emulator-data --export-on-exit`
+  (UI http://127.0.0.1:4000). If Firestore dies with "Unable to establish loopback connection", set
+  `$env:JAVA_TOOL_OPTIONS="-Djdk.net.unixdomain.tmpdir=C:/fyp/tmp"` first
+- Backend on emulators: set `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"` and
+  `$env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` before `uvicorn`; without them the DB is disabled
+  and deep checks are just not saved
+- DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
+- DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
 - Architecture check: `python -m ml.tests.verify_architecture` (~1 min, 17 checks). Proves the code
   matches Figure 3.8 (in-fold SMOTE-Tomek, never on test, XGB+RF+KNN→LightGBM, Model 1 = one model).
   Rerun after any change to `ml/stacking.py`, `ml/train.py` or `ml/config.py`
@@ -63,9 +79,11 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 
 ## Not done yet
 - Full training run (only `--sample 900` dev models exist so far)
-- Firestore persistence of deep-check results (TODO in `backend/app/main.py`)
 - `mobile/` not created (`flutter create mobile` comes later), so `flutterfire configure` not run
-- Firebase project not created in the console
+- Firebase project not created in the console (database runs on the emulator; go-live steps in
+  `docs/DATABASE.md` §7)
+- ERD / data dictionary (Fig 3.14, Tables 3.18-3.23) don't match the stored input fields; see
+  `docs/DATABASE.md` §8
 - No Android phone or emulator connected yet
 
 ## Conventions

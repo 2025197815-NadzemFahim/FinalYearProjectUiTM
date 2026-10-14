@@ -1,0 +1,55 @@
+rules_version = '2';
+
+// Firestore security rules (apply to the Flutter app / client SDKs only).
+// The FastAPI backend uses the Admin SDK, which bypasses these rules - that is
+// how deep-check results get written while the app itself cannot write them.
+//
+// Data layout (see docs/DATABASE.md):
+//   users/{userID}                                  <- ERD entity: User
+//   users/{userID}/deepCheckResults/{resultID}      <- ERD: DeepCheckResult
+//        .diseaseInput { ... }                      <- ERD: DiseaseInput + Heart/Stroke/DiabetesInput
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+
+    // FR-02 Register / FR-05 Manage Profile: validate what the app writes
+    function validProfile(d) {
+      return d.keys().hasOnly(['userName', 'userEmail', 'userAge', 'userSex', 'userCreate_at'])
+          && d.userName is string && d.userName.size() > 0 && d.userName.size() <= 100
+          && d.userEmail is string && d.userEmail == request.auth.token.email
+          && d.userAge is int && d.userAge >= 18 && d.userAge <= 120
+          && d.userSex in ['male', 'female']
+          && d.userCreate_at is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      // created once, at registration; the timestamp must be the server's
+      allow create: if isOwner(userId)
+                    && validProfile(request.resource.data)
+                    && request.resource.data.userCreate_at == request.time;
+      // profile edits may not change the email or the creation time
+      allow update: if isOwner(userId)
+                    && validProfile(request.resource.data)
+                    && request.resource.data.userEmail == resource.data.userEmail
+                    && request.resource.data.userCreate_at == resource.data.userCreate_at;
+      allow delete: if false;
+
+      // FR-10 View Prediction History: users read only their own results.
+      // Writes come only from the backend (Admin SDK), never from the app,
+      // so a user cannot fake a risk percentage.
+      match /deepCheckResults/{resultId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // Everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

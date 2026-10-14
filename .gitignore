@@ -235,3 +235,8 @@ data/
 ml/models/
 ml/reports/
 catboost_info/
+
+# Firebase emulator: local data and logs
+firebase/emulator-data/
+firebase/*-debug.log
+*-debug.log
