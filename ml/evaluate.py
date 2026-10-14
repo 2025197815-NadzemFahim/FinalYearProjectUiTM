@@ -5,12 +5,23 @@ from sklearn.metrics import (accuracy_score, average_precision_score,
                              roc_auc_score)
 
 
-def classification_metrics(y_true, proba: np.ndarray) -> dict:
+def classification_metrics(y_true, proba: np.ndarray, threshold=None, class_weights=None) -> dict:
     y_true = np.asarray(y_true)
-    y_pred = proba.argmax(axis=1)
     binary = proba.shape[1] == 2
+    # Binary: tuned threshold. Multi-class: tuned per-class weights.
+    # Models without either (older saves) fall back to argmax.
+    if binary and threshold is not None:
+        y_pred = (proba[:, 1] >= threshold).astype(int)
+    elif not binary and class_weights is not None:
+        y_pred = (proba * np.asarray(class_weights)).argmax(axis=1)
+    else:
+        y_pred = proba.argmax(axis=1)
     avg = "binary" if binary else "macro"
     m = {
+        "threshold": threshold,
+        # plain list: json.dumps can't save NumPy arrays
+        "class_weights": None if class_weights is None
+                         else [round(float(v), 3) for v in class_weights],
         "accuracy": accuracy_score(y_true, y_pred),
         "balanced_accuracy": balanced_accuracy_score(y_true, y_pred),
         "precision": precision_score(y_true, y_pred, average=avg, zero_division=0),
@@ -29,14 +40,19 @@ def classification_metrics(y_true, proba: np.ndarray) -> dict:
 
 
 def compare_models(model, X_test, y_test) -> dict:
-    results = {"stacked_ensemble": classification_metrics(y_test, model.predict_proba(X_test))}
+    # Every model is judged at its own threshold / class weights, all chosen
+    # the same way from training out-of-fold predictions -> a fair comparison
+    th = getattr(model, "thresholds_", {})
+    cw = getattr(model, "class_weights_", {})
+    results = {"stacked_ensemble": classification_metrics(
+        y_test, model.predict_proba(X_test), th.get("stacked_ensemble"), cw.get("stacked_ensemble"))}
     for name, proba in model.base_predict_proba(X_test).items():
-        results[name] = classification_metrics(y_test, proba)
+        results[name] = classification_metrics(y_test, proba, th.get(name), cw.get(name))
     return results
 
 
 def print_summary(title: str, results: dict):
-    keys = ["accuracy", "balanced_accuracy", "precision", "recall", "f1", "roc_auc"]
+    keys = ["accuracy", "balanced_accuracy", "precision", "recall", "f1", "roc_auc", "pr_auc"]
     print(f"\n  {title}")
     print("  " + f"{'model':18s}" + "".join(f"{k[:9]:>10s}" for k in keys))
     for name, m in results.items():

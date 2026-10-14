@@ -10,13 +10,54 @@ from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import f1_score, precision_recall_curve
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBClassifier
 
 from ml import config
+
+def best_threshold(y, p, mode=None, min_recall=None):
+    """Pick a yes/no cut-off from probabilities p for true labels y (binary only)."""
+    mode = mode or config.THRESHOLD_MODE
+    min_recall = config.MIN_RECALL if min_recall is None else min_recall
+    precision, recall, thresholds = precision_recall_curve(y, p)
+    # precision/recall have one extra trailing value that has no threshold
+    precision, recall = precision[:-1], recall[:-1]
+    if mode == "f1":
+        f1 = 2 * precision * recall / (precision + recall + 1e-12)
+        i = int(np.argmax(f1))
+    else:  # "recall"
+        ok = np.where(recall >= min_recall)[0]
+        i = int(ok[np.argmax(precision[ok])])
+    return float(thresholds[i])
+
+
+def best_class_weights(y, proba, grid=None, passes=3):
+    """Per-class multipliers for multi-class predictions, chosen to maximise macro-F1.
+
+    Prediction becomes argmax(proba * weights). Binary targets use a threshold;
+    multi-class targets (Diabetes_012) use these weights instead.
+    """
+    grid = np.geomspace(0.5, 50, 40) if grid is None else grid
+    k = proba.shape[1]
+    w = np.ones(k)
+
+    def score(weights):
+        return f1_score(y, (proba * weights).argmax(axis=1), average="macro", zero_division=0)
+
+    best = score(w)
+    for _ in range(passes):
+        for c in range(1, k):            # class 0 stays at 1: only the ratios matter
+            for v in grid:
+                trial = w.copy()
+                trial[c] = v
+                s = score(trial)
+                if s > best:
+                    best, w = s, trial
+    return w
 
 def make_preprocessor(numeric: list, categorical: list) -> ColumnTransformer:
     parts = []
@@ -129,12 +170,12 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
             oof[va] = mf
 
         # 2) Meta-learner trained on the honest OOF predictions.
-        #    The OOF rows keep the real (imbalanced) class ratio, so when
-        #    rebalancing is on, weight classes to keep the recall focus.
+        #    No class weighting: the base learners already saw balanced data,
+        #    and the OOF rows keep the real class ratio, so the meta-learner
+        #    also calibrates the probabilities back to realistic values.
+        #    Recall is handled by the decision thresholds below instead.
         self._log("fitting LightGBM meta-learner")
-        self.meta_ = LGBMClassifier(
-            class_weight="balanced" if self.use_resampling else None,
-            **config.META_PARAMS).fit(oof, y)
+        self.meta_ = LGBMClassifier(**config.META_PARAMS).fit(oof, y)
 
         # 3) Final base learners refit on the full training set
         self._log("refitting base learners on full training set")
@@ -144,6 +185,32 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
             Xall, yall = resample(Xall, yall, self.minority_ratio, self.random_state)
         self.bases_ = self._fit_bases(Xall, yall)
         self.oof_meta_features_ = oof
+
+        # Honest out-of-fold probabilities for the ensemble itself
+        # (used only to choose its threshold, never for training)
+        meta_cv = StratifiedKFold(n_splits=self.cv_folds, shuffle=True,
+                                  random_state=self.random_state + 100)
+        oof_ensemble = cross_val_predict(LGBMClassifier(**config.META_PARAMS), oof, y,
+                                         cv=meta_cv, method="predict_proba")
+
+        # One threshold per model, all chosen the same way -> fair comparison
+        self.thresholds_ = {}
+        if len(self.classes_) == 2:
+            self.thresholds_["stacked_ensemble"] = best_threshold(y, oof_ensemble[:, 1])
+            for i, name in enumerate(make_base_learners()):
+                self.thresholds_[name] = best_threshold(y, oof[:, i])
+
+        # Multi-class targets: per-class weights instead of a threshold.
+        # For k classes each base learner contributes k OOF columns, in the
+        # order of make_base_learners(), so learner i is columns i*k..(i+1)*k
+        self.class_weights_ = {}
+        k = len(self.classes_)
+        if k > 2:
+            self.class_weights_["stacked_ensemble"] = best_class_weights(y, oof_ensemble)
+            for i, name in enumerate(make_base_learners()):
+                self.class_weights_[name] = best_class_weights(y, oof[:, i * k:(i + 1) * k])
+            self._log("class weights: " + ", ".join(
+                f"{n} {np.round(w, 2).tolist()}" for n, w in self.class_weights_.items()))
         return self
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
@@ -151,7 +218,16 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
         return self.meta_.predict_proba(self._meta_features(self.bases_, Xt))
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        return self.classes_[self.predict_proba(X).argmax(axis=1)]
+        proba = self.predict_proba(X)
+        # Binary targets use the tuned threshold, multi-class (Diabetes_012)
+        # uses the tuned class weights; older saved models fall back to argmax
+        t = getattr(self, "thresholds_", {}).get("stacked_ensemble")
+        if t is not None:
+            return (proba[:, 1] >= t).astype(int)
+        w = getattr(self, "class_weights_", {}).get("stacked_ensemble")
+        if w is not None:
+            return self.classes_[(proba * w).argmax(axis=1)]
+        return self.classes_[proba.argmax(axis=1)]
 
     def base_predict_proba(self, X: pd.DataFrame) -> dict:
         Xt = self.preprocessor_.transform(X[list(self.feature_names_in_)])

@@ -71,3 +71,9 @@ KNN_PARAMS = dict(n_neighbors=15, weights="distance", n_jobs=-1)
 META_PARAMS = dict(n_estimators=200, learning_rate=0.05, num_leaves=15,
                    max_depth=4, min_child_samples=50, random_state=RANDOM_STATE,
                    verbose=-1)
+
+# Decision threshold, chosen from training out-of-fold predictions only
+# "f1"     -> threshold with the best F1 (balance of precision and recall)
+# "recall" -> highest precision while keeping recall >= MIN_RECALL (screening focus)
+THRESHOLD_MODE = "f1"
+MIN_RECALL = 0.85
