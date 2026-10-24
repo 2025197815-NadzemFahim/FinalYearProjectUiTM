@@ -67,6 +67,10 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   emulator needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
 - DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
 - DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
+- Evaluation of saved models (no retraining): `python -m ml.ci --layer1 --layer2 all` (bootstrap 95%
+  CIs), `python -m ml.calibration --layer1 --layer2 all` (is the risk % honest: Brier, ECE, reliability
+  plots in `ml/reports/figures/`), `python -m ml.repeated_cv --layer2 heart stroke` (5x5 repeated CV +
+  Nadeau-Bengio corrected t-test, retrains in memory only, ~5 min)
 - Architecture check: `python -m ml.tests.verify_architecture` (~1 min, 17 checks). Proves the code
   matches Figure 3.8 (in-fold SMOTE-Tomek, never on test, XGB+RF+KNN→LightGBM, Model 1 = one model).
   Rerun after any change to `ml/stacking.py`, `ml/train.py` or `ml/config.py`
@@ -107,9 +111,9 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Heart dataset on disk is the 920-row UCI version (target `num` 0-4 → binarised to num > 0),
   not the 1,025-row version described in the proposal §3.4.2.1. `slope`, `ca`, `thal` dropped
   (34/66/53% missing). The proposal text needs updating to match
-- The meta-learner uses `class_weight="balanced"` when SMOTE-Tomek is on (recall priority), so
-  `predict_proba` output is NOT a calibrated real-world probability. Decide whether to calibrate
-  before showing "risk %" in the app
+- Risk % calibration (checked with `ml.calibration`): the meta-learner has no class weighting and is
+  fit on out-of-fold rows with the real class ratio, so `predict_proba` is well calibrated (ECE ≤ 0.04).
+  Exception: Layer 2 stroke is weak (Brier barely beats always guessing 4.9%; top decile overstated)
 - Diabetes_012 class 1 (prediabetes) is 1.8% of rows and hard to separate; macro scores will be low
 - App forms in the proposal (Fig 3.18, data dictionary) collect fewer fields than `ml/config.py`
   feature lists; forms must match the contract

@@ -149,3 +149,33 @@ def print_summary(title: str, results: dict):
     print("  " + f"{'model':18s}" + "".join(f"{k[:9]:>10s}" for k in keys))
     for name, m in results.items():
         print("  " + f"{name:18s}" + "".join(f"{m.get(k, float('nan')):10.4f}" for k in keys))
+
+
+# ---------------------------------------------------------------- calibration
+def calibration_metrics(y_true, p, n_bins=10) -> dict:
+    """Can the predicted % be read as a real-world chance? (binary, p = P(disease)).
+
+    brier          mean squared error of the probability (lower is better)
+    brier_baseline Brier of always predicting the dataset's disease rate;
+                   a useful model must beat this
+    ece            expected calibration error: average gap between predicted %
+                   and actual % across equal-sized bins (0 = perfect)
+    bins           the reliability table: each bin's mean predicted vs actual rate
+    """
+    y = np.asarray(y_true).astype(int)
+    p = np.asarray(p, dtype=float)
+    rate = y.mean()
+    # Equal-count bins (deciles of the predictions); empty bins are skipped
+    order = np.argsort(p, kind="stable")
+    bins, ece = [], 0.0
+    for idx in np.array_split(order, n_bins):
+        if len(idx) == 0:
+            continue
+        pred, actual = p[idx].mean(), y[idx].mean()
+        ece += abs(pred - actual) * len(idx) / len(y)
+        bins.append({"n": int(len(idx)), "predicted": round(float(pred), 4),
+                     "actual": round(float(actual), 4)})
+    return {"rate": round(float(rate), 4), "mean_predicted": round(float(p.mean()), 4),
+            "brier": round(float(np.mean((p - y) ** 2)), 4),
+            "brier_baseline": round(float(np.mean((rate - y) ** 2)), 4),
+            "ece": round(float(ece), 4), "bins": bins}
