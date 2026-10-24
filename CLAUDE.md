@@ -41,7 +41,13 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   `auth.py` = ID-token verification); `backend/db_tool.py` DB CLI; tests in `backend/tests/`
 - `firebase/` emulator config, `firestore.rules`, `firestore.indexes.json`; local data in
   `firebase/emulator-data/` (gitignored)
-- `mobile/` Flutter app (not created yet)
+- `mobile/` Flutter app (project `chronic_disease_app`). All 10 Section 3.5.4 interfaces built;
+  `docs/UI_GUIDE.md` = mockup→file mapping, concepts, exercises, placeholder list (§9);
+  `docs/MOBILE_GUIDE.md` = running + connecting real data. lib/: `models/` (data), `screens/` (one per
+  mockup; `auth_gate.dart` Login vs `home_shell.dart` tabs), `widgets/` (shared UI), `services/`
+  (auth = Firebase; prediction + history = DUMMY, replace bodies with FastAPI/Firestore),
+  `theme/app_theme.dart` (AppColors, AppFonts), `navigation/app_tabs.dart`, `config/firebase_config.dart`
+- Root .gitignore is the Python template (ignores every `lib/`); `!mobile/lib/` re-includes Flutter code
 - `data/raw/brfss/`, `data/raw/layer2/` original datasets, never edit by hand (gitignored)
 - `data/processed/` cleaned data written by notebooks (gitignored)
 - `docs/CODING_GUIDE.md` step-by-step plan for the ML work; `docs/DATABASE.md` database guide
@@ -57,6 +63,8 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Backend on emulators: set `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"` and
   `$env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` before `uvicorn`; without them the DB is disabled
   and deep checks are just not saved
+- Flutter (in `mobile/`): `flutter run -d chrome` (emulators running), `flutter test` (11 tests, no
+  emulator needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
 - DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
 - DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
 - Architecture check: `python -m ml.tests.verify_architecture` (~1 min, 17 checks). Proves the code
@@ -79,7 +87,9 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 
 ## Not done yet
 - Full training run (only `--sample 900` dev models exist so far)
-- `mobile/` not created (`flutter create mobile` comes later), so `flutterfire configure` not run
+- `flutterfire configure` not run (app uses demo FirebaseOptions + Auth emulator); Firestore not yet
+  used in the app. Predictions + history in the app are dummy data (UI_GUIDE §9). google_fonts 9
+  uses the separate `material_ui` package, so don't pass its `*TextTheme()` into ThemeData
 - Firebase project not created in the console (database runs on the emulator; go-live steps in
   `docs/DATABASE.md` §7)
 - ERD / data dictionary (Fig 3.14, Tables 3.18-3.23) don't match the stored input fields; see
