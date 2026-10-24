@@ -240,3 +240,7 @@ catboost_info/
 firebase/emulator-data/
 firebase/*-debug.log
 *-debug.log
+
+# The Python template above ignores every "lib/" folder - but Flutter keeps all
+# its source code in mobile/lib/. Re-include it.
+!mobile/lib/
