@@ -71,6 +71,12 @@ KNN_PARAMS = dict(n_neighbors=15, weights="distance", n_jobs=-1)
 META_PARAMS = dict(n_estimators=200, learning_rate=0.05, num_leaves=15,
                    max_depth=4, min_child_samples=50, random_state=RANDOM_STATE,
                    verbose=-1)
+# Monotone meta-learner (binary targets only): a higher P(disease) from any
+# base learner may never LOWER the ensemble's risk. Keeps the meta-learner
+# from scrambling the risk ordering on small data (stroke has ~160 cases per
+# training fold). Not used for 3-class Diabetes_012, where a higher P(class 1)
+# should lower the other classes, so one "increasing" rule would be wrong.
+META_MONOTONE = True
 
 # Decision threshold, chosen from training out-of-fold predictions only
 # "f1"     -> threshold with the best F1 (balance of precision and recall)

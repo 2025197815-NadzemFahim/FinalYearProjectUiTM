@@ -175,7 +175,7 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
         #    also calibrates the probabilities back to realistic values.
         #    Recall is handled by the decision thresholds below instead.
         self._log("fitting LightGBM meta-learner")
-        self.meta_ = LGBMClassifier(**config.META_PARAMS).fit(oof, y)
+        self.meta_ = self._make_meta(oof.shape[1]).fit(oof, y)
 
         # 3) Final base learners refit on the full training set
         self._log("refitting base learners on full training set")
@@ -208,8 +208,15 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
         """Out-of-fold probabilities of the meta-learner (cross-validated on the OOF table)."""
         meta_cv = StratifiedKFold(n_splits=self.cv_folds, shuffle=True,
                                   random_state=self.random_state + 100)
-        return cross_val_predict(LGBMClassifier(**config.META_PARAMS), oof, y,
+        return cross_val_predict(self._make_meta(oof.shape[1]), oof, y,
                                  cv=meta_cv, method="predict_proba")
+
+    def _make_meta(self, n_features):
+        """The LightGBM meta-learner; monotone increasing for binary targets."""
+        params = dict(config.META_PARAMS)
+        if config.META_MONOTONE and len(self.classes_) == 2:
+            params["monotone_constraints"] = [1] * n_features
+        return LGBMClassifier(**params)
 
     def tune_thresholds(self, y, mode=None, min_recall=None, oof_ensemble=None):
         """Choose one decision threshold per model (binary targets only).
