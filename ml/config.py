@@ -77,3 +77,6 @@ META_PARAMS = dict(n_estimators=200, learning_rate=0.05, num_leaves=15,
 # "recall" -> highest precision while keeping recall >= MIN_RECALL (screening focus)
 THRESHOLD_MODE = "f1"
 MIN_RECALL = 0.85
+
+# Bootstrap confidence intervals: number of test-set resamples
+N_BOOTSTRAP = 1000

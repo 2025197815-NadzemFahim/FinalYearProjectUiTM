@@ -188,17 +188,8 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
 
         # Honest out-of-fold probabilities for the ensemble itself
         # (used only to choose its threshold, never for training)
-        meta_cv = StratifiedKFold(n_splits=self.cv_folds, shuffle=True,
-                                  random_state=self.random_state + 100)
-        oof_ensemble = cross_val_predict(LGBMClassifier(**config.META_PARAMS), oof, y,
-                                         cv=meta_cv, method="predict_proba")
-
-        # One threshold per model, all chosen the same way -> fair comparison
-        self.thresholds_ = {}
-        if len(self.classes_) == 2:
-            self.thresholds_["stacked_ensemble"] = best_threshold(y, oof_ensemble[:, 1])
-            for i, name in enumerate(make_base_learners()):
-                self.thresholds_[name] = best_threshold(y, oof[:, i])
+        oof_ensemble = self._oof_ensemble(oof, y)
+        self.tune_thresholds(y, oof_ensemble=oof_ensemble)
 
         # Multi-class targets: per-class weights instead of a threshold.
         # For k classes each base learner contributes k OOF columns, in the
@@ -211,6 +202,33 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
                 self.class_weights_[name] = best_class_weights(y, oof[:, i * k:(i + 1) * k])
             self._log("class weights: " + ", ".join(
                 f"{n} {np.round(w, 2).tolist()}" for n, w in self.class_weights_.items()))
+        return self
+
+    def _oof_ensemble(self, oof, y):
+        """Out-of-fold probabilities of the meta-learner (cross-validated on the OOF table)."""
+        meta_cv = StratifiedKFold(n_splits=self.cv_folds, shuffle=True,
+                                  random_state=self.random_state + 100)
+        return cross_val_predict(LGBMClassifier(**config.META_PARAMS), oof, y,
+                                 cv=meta_cv, method="predict_proba")
+
+    def tune_thresholds(self, y, mode=None, min_recall=None, oof_ensemble=None):
+        """Choose one decision threshold per model (binary targets only).
+
+        Uses only the stored training out-of-fold predictions, so it can be
+        re-run on a saved model with a different mode ("f1" or "recall")
+        without retraining. y must be the training labels the model was fit on.
+        """
+        oof = self.oof_meta_features_
+        y = np.asarray(y).astype(int)
+        self.thresholds_ = {}
+        if len(self.classes_) != 2:
+            return self
+        if oof_ensemble is None:
+            oof_ensemble = self._oof_ensemble(oof, y)
+        # One threshold per model, all chosen the same way -> fair comparison
+        self.thresholds_["stacked_ensemble"] = best_threshold(y, oof_ensemble[:, 1], mode, min_recall)
+        for i, name in enumerate(make_base_learners()):
+            self.thresholds_[name] = best_threshold(y, oof[:, i], mode, min_recall)
         return self
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:

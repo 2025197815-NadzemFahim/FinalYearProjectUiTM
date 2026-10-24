@@ -10,7 +10,7 @@ from sklearn.multioutput import MultiOutputClassifier
 
 from ml import config
 from ml.data import load_brfss, load_layer2
-from ml.evaluate import compare_models, print_summary
+from ml.evaluate import bootstrap_ci, compare_models, print_ci, print_summary
 from ml.stacking import StackedEnsemble
 
 
@@ -19,6 +19,44 @@ def _subsample(X, y, n, seed):
         return X, y
     Xs, _, ys, _ = train_test_split(X, y, train_size=n, stratify=y, random_state=seed)
     return Xs, ys
+
+
+# ---------------------------------------------------------------- shared splits
+# Training (ml.train) and the confidence-interval script (ml.ci) both call
+# these, so they always see exactly the same 80:20 test set.
+def layer1_split(sample=None):
+    """80:20 split of BRFSS, stratified on the combination of all three labels."""
+    X, Y = load_brfss()
+    targets = config.BRFSS_TARGETS
+    # Stratify on the combination of all three labels (e.g. "2-1-0") so the
+    # split keeps every disease mix in proportion. Tiny dev samples may have
+    # combinations with < 2 rows; fall back to the diabetes label then.
+    key = Y.astype(str).agg("-".join, axis=1)
+    if sample:
+        X, _, Y, _, key, _ = train_test_split(X, Y, key, train_size=sample, stratify=Y[targets[0]],
+                                              random_state=config.RANDOM_STATE)
+    strat = key if key.value_counts().min() >= 2 else Y[targets[0]]
+    return train_test_split(X, Y, test_size=config.TEST_SIZE, stratify=strat,
+                            random_state=config.RANDOM_STATE)
+
+
+def layer2_split(name, sample=None):
+    """80:20 split of one deep-check dataset, stratified on its target."""
+    X, y = load_layer2(name)
+    X, y = _subsample(X, y.to_numpy(), sample, config.RANDOM_STATE)
+    return train_test_split(X, y, test_size=config.TEST_SIZE, stratify=y,
+                            random_state=config.RANDOM_STATE)
+
+
+def evaluate_with_ci(title, model, X_te, y_te, n_boot=None):
+    """Point scores + bootstrap confidence intervals, printed and returned."""
+    results = compare_models(model, X_te, y_te)
+    print_summary(f"{title} - held-out test set", results)
+    t = time.time()
+    ci = bootstrap_ci(model, X_te, y_te, n_boot=n_boot)
+    print_ci(title, results, ci)
+    print(f"    (confidence intervals took {time.time() - t:.0f}s)")
+    return results, ci
 
 
 def _save(name, model, report, sample, t0):
@@ -41,18 +79,8 @@ def train_layer1(sample=None):
     can only rebalance one target at a time.
     """
     t0 = time.time()
-    X, Y = load_brfss()
     targets = config.BRFSS_TARGETS
-    # Stratify on the combination of all three labels (e.g. "2-1-0") so the
-    # 80:20 split keeps every disease mix in proportion. Tiny dev samples may
-    # have combinations with < 2 rows; fall back to the diabetes label then.
-    key = Y.astype(str).agg("-".join, axis=1)
-    if sample:
-        X, _, Y, _, key, _ = train_test_split(X, Y, key, train_size=sample, stratify=Y[targets[0]],
-                                              random_state=config.RANDOM_STATE)
-    strat = key if key.value_counts().min() >= 2 else Y[targets[0]]
-    X_tr, X_te, Y_tr, Y_te = train_test_split(
-        X, Y, test_size=config.TEST_SIZE, stratify=strat, random_state=config.RANDOM_STATE)
+    X_tr, X_te, Y_tr, Y_te = layer1_split(sample)
     print(f"\n=== layer1_general (Model 1): train {len(X_tr):,} / test {len(X_te):,} | "
           f"targets {targets} | SMOTE-Tomek on")
 
@@ -61,40 +89,37 @@ def train_layer1(sample=None):
         numeric=config.BRFSS_FEATURES, categorical=[], use_resampling=True))
     model.fit(X_tr, Y_tr.to_numpy())
 
-    results = {}
+    results, cis = {}, {}
     for target, est in zip(targets, model.estimators_):
-        results[target] = compare_models(est, X_te, Y_te[target].to_numpy())
-        print_summary(f"layer1_general -> {target} - held-out test set", results[target])
+        results[target], cis[target] = evaluate_with_ci(
+            f"layer1_general -> {target}", est, X_te, Y_te[target].to_numpy())
 
     report = {"model": "layer1_general", "rows_train": len(X_tr), "rows_test": len(X_te),
               "features": config.BRFSS_FEATURES, "targets": targets, "smote_tomek": True,
               "minority_ratio": config.MINORITY_RATIO,
               "classes": {t: e.classes_.tolist() for t, e in zip(targets, model.estimators_)},
-              "results": results}
+              "results": results, "confidence_intervals": cis}
     _save("layer1_general", model, report, sample, t0)
 
 
-def train_one(name, X, y, numeric, categorical, use_resampling, sample=None):
+def train_one(name, spec, sample=None):
     t0 = time.time()
-    X, y = _subsample(X, y, sample, config.RANDOM_STATE)
-    X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=config.TEST_SIZE, stratify=y, random_state=config.RANDOM_STATE)
+    X_tr, X_te, y_tr, y_te = layer2_split(name, sample)
     dist = (pd.Series(y_tr).value_counts(normalize=True).sort_index() * 100).round(2)
-    print(f"\n=== {name}: train {len(X_tr):,} / test {len(X_te):,} | "
-          f"class % {dist.to_dict()} | SMOTE-Tomek {'on' if use_resampling else 'off'}")
+    print(f"\n=== layer2_{name}: train {len(X_tr):,} / test {len(X_te):,} | "
+          f"class % {dist.to_dict()} | SMOTE-Tomek {'on' if spec['resample'] else 'off'}")
 
-    model = StackedEnsemble(numeric=numeric, categorical=categorical,
-                            use_resampling=use_resampling).fit(X_tr, y_tr)
-    results = compare_models(model, X_te, y_te)
-    print_summary(f"{name} - held-out test set", results)
+    model = StackedEnsemble(numeric=spec["numeric"], categorical=spec["categorical"],
+                            use_resampling=spec["resample"]).fit(X_tr, y_tr)
+    results, ci = evaluate_with_ci(f"layer2_{name}", model, X_te, y_te)
 
     report = {
-        "model": name, "rows_train": len(X_tr), "rows_test": len(X_te),
-        "features": numeric + categorical, "smote_tomek": use_resampling,
+        "model": f"layer2_{name}", "rows_train": len(X_tr), "rows_test": len(X_te),
+        "features": spec["numeric"] + spec["categorical"], "smote_tomek": spec["resample"],
         "minority_ratio": config.MINORITY_RATIO, "classes": model.classes_.tolist(),
-        "results": results,
+        "results": results, "confidence_intervals": ci,
     }
-    _save(name, model, report, sample, t0)
+    _save(f"layer2_{name}", model, report, sample, t0)
     return report
 
 
@@ -117,10 +142,7 @@ def main():
     if args.layer2:
         names = list(config.LAYER2) if "all" in args.layer2 else args.layer2
         for name in names:
-            spec = config.LAYER2[name]
-            X, y = load_layer2(name)
-            train_one(f"layer2_{name}", X, y.to_numpy(), spec["numeric"],
-                      spec["categorical"], spec["resample"], sample=args.sample)
+            train_one(name, config.LAYER2[name], sample=args.sample)
 
 
 if __name__ == "__main__":
