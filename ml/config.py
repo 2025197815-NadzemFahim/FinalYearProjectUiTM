@@ -52,6 +52,19 @@ LAYER2 = {
     },
 }
 
+# Model roles per disease. "full" = the LAYER2 reading list above.
+# Other roles use fewer readings from the SAME dataset, e.g. the reduced heart
+# model for users without an exercise stress test (no thalch, exang, oldpeak).
+LAYER2_ROLES = {
+    "heart": {
+        "reduced": {"numeric": ["age", "trestbps", "chol"],
+                    "categorical": ["sex", "cp", "fbs", "restecg"]},
+    },
+}
+
+# Dataset versions: the registry records which data every model learned from
+DATASET_VERSIONS = {"heart": "uci-v1", "stroke": "kaggle-v1", "diabetes": "kaggle-v1"}
+
 # --------------------------------------------------------------------------
 # Rebalancing
 # --------------------------------------------------------------------------

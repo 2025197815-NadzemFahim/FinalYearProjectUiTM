@@ -71,11 +71,16 @@ def make_preprocessor(numeric: list, categorical: list) -> ColumnTransformer:
     return ColumnTransformer(parts, remainder="drop", verbose_feature_names_out=False)
 
 
-def make_base_learners() -> dict:
+def make_base_learners(params=None) -> dict:
+    """The three base learners. `params` overrides config settings for tuning, e.g.
+    {"xgboost": {"max_depth": 4}, "random_forest": {"min_samples_leaf": 5}, "knn": {"n_neighbors": 25}}.
+    None = exactly the config.py settings."""
+    p = params or {}
     return {
-        "xgboost": XGBClassifier(**config.XGB_PARAMS),
-        "random_forest": RandomForestClassifier(**config.RF_PARAMS),
-        "knn": make_pipeline(StandardScaler(), KNeighborsClassifier(**config.KNN_PARAMS)),
+        "xgboost": XGBClassifier(**{**config.XGB_PARAMS, **p.get("xgboost", {})}),
+        "random_forest": RandomForestClassifier(**{**config.RF_PARAMS, **p.get("random_forest", {})}),
+        "knn": make_pipeline(StandardScaler(),
+                             KNeighborsClassifier(**{**config.KNN_PARAMS, **p.get("knn", {})})),
     }
 
 
@@ -105,7 +110,7 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
 
     def __init__(self, numeric=None, categorical=None, use_resampling=True,
                  minority_ratio=config.MINORITY_RATIO, cv_folds=config.CV_FOLDS,
-                 random_state=config.RANDOM_STATE, verbose=True):
+                 random_state=config.RANDOM_STATE, verbose=True, params=None):
         self.numeric = numeric
         self.categorical = categorical
         self.use_resampling = use_resampling
@@ -113,6 +118,7 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
         self.cv_folds = cv_folds
         self.random_state = random_state
         self.verbose = verbose
+        self.params = params        # tuning overrides; None = config.py settings
 
     # -- helpers -------------------------------------------------------------
     def _log(self, msg):
@@ -121,7 +127,7 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
 
     def _fit_bases(self, X, y):
         fitted = {}
-        for name, est in make_base_learners().items():
+        for name, est in make_base_learners(self._params()).items():
             t = time.time()
             fitted[name] = clone(est).fit(X, y)
             self._log(f"  fitted {name:13s} ({time.time() - t:.0f}s)")
@@ -211,9 +217,13 @@ class StackedEnsemble(ClassifierMixin, BaseEstimator):
         return cross_val_predict(self._make_meta(oof.shape[1]), oof, y,
                                  cv=meta_cv, method="predict_proba")
 
+    def _params(self) -> dict:
+        # getattr: models saved before `params` existed don't have the attribute
+        return getattr(self, "params", None) or {}
+
     def _make_meta(self, n_features):
         """The LightGBM meta-learner; monotone increasing for binary targets."""
-        params = dict(config.META_PARAMS)
+        params = {**config.META_PARAMS, **self._params().get("meta", {})}
         if config.META_MONOTONE and len(self.classes_) == 2:
             params["monotone_constraints"] = [1] * n_features
         return LGBMClassifier(**params)

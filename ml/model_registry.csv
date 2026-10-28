@@ -1,0 +1,4 @@
+timestamp,kind,disease,role,algorithm,dataset_version,dataset_md5,seed,git_commit,cv_f1,cv_f1_sd,cv_roc_auc,test_f1,test_roc_auc,test_pr_auc,best,name,path,params,note
+2026-10-28 10:29:42,baseline,heart,full,stack-xgb-rf-knn-lgbm,uci-v1,bde777287266,42,1baa9c2+dirty,,,,0.843,0.9094,0.9267,,layer2_heart,ml\models\layer2_heart.joblib,{},model the API uses today; config.py settings
+2026-10-28 10:29:42,baseline,stroke,full,stack-xgb-rf-knn-lgbm,kaggle-v1,3f25a4c2f296,42,1baa9c2+dirty,,,,0.2374,0.7961,0.1543,,layer2_stroke,ml\models\layer2_stroke.joblib,{},model the API uses today; config.py settings
+2026-10-28 10:29:43,baseline,diabetes,full,stack-xgb-rf-knn-lgbm,kaggle-v1,cb243b99d81d,42,1baa9c2+dirty,,,,0.8069,0.9767,0.8771,,layer2_diabetes,ml\models\layer2_diabetes.joblib,{},model the API uses today; config.py settings

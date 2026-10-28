@@ -71,6 +71,7 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   CIs), `python -m ml.calibration --layer1 --layer2 all` (is the risk % honest: Brier, ECE, reliability
   plots in `ml/reports/figures/`), `python -m ml.repeated_cv --layer2 heart stroke` (5x5 repeated CV +
   Nadeau-Bengio corrected t-test, retrains in memory only, ~5 min)
+- Layer 2 experiments (never overwrite): `python -m ml.experiment --disease heart [--role reduced] [--set xgboost.max_depth=4 ...] [--no-save]` -> CV F1 on the training set, final fit, saved to `ml/models/registry/` + a row in `ml/model_registry.csv` (committed). `python -m ml.registry list|best`. Best = highest CV F1 (never test). The API still loads `ml/models/layer2_*.joblib`; switching needs approval
 - Architecture check: `python -m ml.tests.verify_architecture` (~1 min, 17 checks). Proves the code
   matches Figure 3.8 (in-fold SMOTE-Tomek, never on test, XGB+RF+KNN→LightGBM, Model 1 = one model).
   Rerun after any change to `ml/stacking.py`, `ml/train.py` or `ml/config.py`
