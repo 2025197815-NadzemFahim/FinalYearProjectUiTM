@@ -38,10 +38,10 @@ Hours are rough estimates for working time, not compute time. Priority: **P1** =
 | M2 | Comparison script: (a) single models, (b) ensemble on main only, (c) ensemble on augmented, all on the SAME real-only test set, using repeated CV + the corrected t-test | Claude builds, you run | 12 | 4 | D6, M1 | P1 |
 | M3 | Hyperparameter tuning of the whole ensemble (CV on training set only) | You (Claude hints/reviews) | 13 | 10-15 | M2 | P2 |
 | **CP4** | **CHECKPOINT 4: results review; no backend switch without approval** | You | 14 | 1 | M3 | - |
-| I1 | `docs/input_readings.md`: every reading per layer/disease, unit, range, how obtained, shared? | Claude | 15 | 3 | final feature sets | P1 |
+| I1 | `docs/input_readings.md`: every reading per layer/disease, unit, range, how obtained, shared? | Claude | 15 | 3 | final feature sets | P1 ✅ done 2026-10-28; CP5 approved 2026-10-29 |
 | **CP5** | **CHECKPOINT 5: approve inventory before any UI work** | You | 16 | - | I1 | - |
 | U0 | Connect the app to the real API (replaces dummy predictions; prerequisite for pre-fill to mean anything) | Claude structure, you finish | 17 | 4 | CP5 | P1 |
-| U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 |
+| U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 ✅ proposal in `docs/lifestyle_check_proposal.md`; CP6 approved 2026-10-29 (income table pending) |
 | **CP6** | **CHECKPOINT 6: approve readings, levels, mappings** | You | 19 | - | U1 | - |
 | U2 | Profile fields at sign-up + save to Firestore (age/DOB, sex, height, stable answers) | You (Claude structure) | 20 | 6 | CP6 | P1 |
 | U3 | Lifestyle quick-check screens (retakeable) | Claude structure, you finish | 21 | 4 + 4 | CP6 | P1 |
