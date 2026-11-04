@@ -44,9 +44,9 @@ Hours are rough estimates for working time, not compute time. Priority: **P1** =
 | U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 ✅ proposal in `docs/lifestyle_check_proposal.md`; CP6 approved 2026-10-29 (income table pending) |
 | **CP6** | **CHECKPOINT 6: approve readings, levels, mappings** | You | 19 | - | U1 | - |
 | U2 | Profile fields at sign-up + save to Firestore (age/DOB, sex, height, stable answers) | You (Claude structure) | 20 | 6 | CP6 | P1 |
-| U3 | Lifestyle quick-check screens (retakeable) | Claude structure, you finish | 21 | 4 + 4 | CP6 | P1 |
-| U4 | Pre-fill and collapse matching fields in Quick Prediction / Deep-Check | Claude structure, you finish | 22 | 4 + 3 | U2, U3 | P1 |
-| U4b | Heart Deep-Check toggle "I haven't done a stress test": hides the 3 stress-test fields and uses the reduced model, with a "less precise" note | Claude structure, you finish | 22b | 2 + 1 | H1, U0 | P1 |
+| U3 | Lifestyle quick-check screens (retakeable) | Claude structure, you finish | 21 | 4 + 4 | CP6 | P1 ✅ structure done 2026-10-29: `lifestyle_check_screen.dart` (+ My details, Medical history screens) |
+| U4 | Pre-fill and collapse matching fields in Quick Prediction / Deep-Check | Claude structure, you finish | 22 | 4 + 3 | U2, U3 | P1 ✅ structure done 2026-10-29: saved-details card; Quick asks 5, stroke 2, diabetes 3; `models/api_payloads.dart` (requests verified against the real API) |
+| U4b | Heart Deep-Check toggle "I haven't done a stress test": hides the 3 stress-test fields and uses the reduced model, with a "less precise" note | Claude structure, you finish | 22b | 2 + 1 | H1, U0 | P1 ✅ UI done 2026-10-29 (stress-test question first); real reduced endpoint waits for H1 + CP4 |
 | U5 | Tutorial section (data-driven JSON, title/steps/tips/video placeholder, help icons, loading/error/offline states) | Claude structure, you add content/videos | 23 | 5 + 4 | I1 | P2 |
 | T1 | Update thesis Ch 3 (datasets, features, UI) and Ch 4 (results) to match | You | 24 | 8+ | all | P1 |
 

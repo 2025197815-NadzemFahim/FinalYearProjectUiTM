@@ -45,7 +45,8 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   `docs/UI_GUIDE.md` = mockup→file mapping, concepts, exercises, placeholder list (§9);
   `docs/MOBILE_GUIDE.md` = running + connecting real data. lib/: `models/` (data), `screens/` (one per
   mockup; `auth_gate.dart` Login vs `home_shell.dart` tabs), `widgets/` (shared UI), `services/`
-  (auth = Firebase; prediction + history = DUMMY, replace bodies with FastAPI/Firestore),
+  (auth = Firebase; prediction + history + profile = DUMMY/in-memory, replace bodies with
+  FastAPI/Firestore), `models/api_payloads.dart` = answers -> exact API request bodies,
   `theme/app_theme.dart` (AppColors, AppFonts), `navigation/app_tabs.dart`, `config/firebase_config.dart`
 - Root .gitignore is the Python template (ignores every `lib/`); `!mobile/lib/` re-includes Flutter code
 - `data/raw/brfss/`, `data/raw/layer2/` original datasets, never edit by hand (gitignored)
@@ -63,8 +64,8 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Backend on emulators: set `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"` and
   `$env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` before `uvicorn`; without them the DB is disabled
   and deep checks are just not saved
-- Flutter (in `mobile/`): `flutter run -d chrome` (emulators running), `flutter test` (11 tests, no
-  emulator needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
+- Flutter (in `mobile/`): `flutter run -d chrome` (emulators running), `flutter test` (24 tests: 11 payload
+  mapping + 13 widget, no emulator needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
 - DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
 - DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
 - Evaluation of saved models (no retraining): `python -m ml.ci --layer1 --layer2 all` (bootstrap 95%
