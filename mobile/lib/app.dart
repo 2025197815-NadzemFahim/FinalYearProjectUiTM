@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'screens/auth_gate.dart';
 import 'services/app_services.dart';
 import 'services/auth_service.dart';
+import 'services/profile_service.dart';
 import 'theme/app_theme.dart';
 
 /// The root widget. MaterialApp sets up the theme and the first screen.
 class App extends StatelessWidget {
-  // The auth service is passed in (not created here) so tests can give a fake one.
-  App({super.key, required AuthService auth}) : services = AppServices(auth: auth);
+  // The services are passed in (not created here) so tests can give fake ones,
+  // e.g. a ProfileService that already has a complete profile.
+  App({super.key, required AuthService auth, ProfileService? profile})
+      : services = AppServices(auth: auth, profile: profile);
 
   final AppServices services;
 

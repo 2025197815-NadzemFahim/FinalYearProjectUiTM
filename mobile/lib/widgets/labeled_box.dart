@@ -44,6 +44,8 @@ class LabeledNumberBox extends StatelessWidget {
     this.decimal = false,
     this.readOnly = false,
     this.onChanged,
+    this.min,
+    this.max,
   });
 
   final String label;
@@ -52,6 +54,16 @@ class LabeledNumberBox extends StatelessWidget {
   final bool decimal;        // allow 41.5 (true) or whole numbers only (false)
   final bool readOnly;       // BMI is calculated, not typed
   final ValueChanged<String>? onChanged;
+  final num? min, max;       // valid range (the same one the API enforces)
+
+  /// Empty, not a number, or outside min-max -> an error message under the box.
+  String? _validate(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Required';
+    final n = num.tryParse(v);
+    if (n == null) return 'Not a number';
+    if ((min != null && n < min!) || (max != null && n > max!)) return '$min-$max';
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,13 +83,16 @@ class LabeledNumberBox extends StatelessWidget {
             onChanged: onChanged,
             textAlign: TextAlign.center,
             style: AppFonts.body(size: 15),
-            keyboardType: TextInputType.numberWithOptions(decimal: decimal),
-            // Only allow digits (and one dot if decimal) to be typed.
+            keyboardType: TextInputType.numberWithOptions(
+                decimal: decimal, signed: min != null && min! < 0),
+            // Only allow digits (and one dot if decimal, a leading minus if the
+            // range goes below 0) to be typed. r'...' = raw string: \d stays \d.
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(decimal ? r'^\d*\.?\d*' : r'^\d*')),
+              FilteringTextInputFormatter.allow(RegExp(
+                  '^${min != null && min! < 0 ? '-?' : ''}' r'\d*' '${decimal ? r'\.?\d*' : ''}')),
             ],
-            // Field must not be empty when the form is submitted.
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+            // Empty or out of range -> error message when the form is submitted.
+            validator: _validate,
             decoration: InputDecoration(
               border: InputBorder.none,           // the pill already draws the box
               isDense: true,

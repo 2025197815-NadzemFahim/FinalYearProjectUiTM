@@ -12,11 +12,14 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 
+import '../models/user_details.dart';
 import '../navigation/app_tabs.dart';
+import '../navigation/details_flow.dart';
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/coming_soon.dart';
+import 'lifestyle_check_screen.dart';
 import 'quick_prediction_input_screen.dart';
 
 class MainScreen extends StatelessWidget {
@@ -38,6 +41,7 @@ class MainScreen extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: [
         _Header(text: 'Welcome back,\n$_firstName!'),
+        _DetailsBanner(services: services),
         const SizedBox(height: 28),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -52,9 +56,13 @@ class MainScreen extends StatelessWidget {
                   iconColor: const Color(0xFF5B6CF0),
                   title: 'Predict a Disease with AI Model',
                   subtitle: 'Predicting a disease of Heart Disease, Diabetes or Stroke',
-                  // Opens the Quick Prediction form on top of the Home tab.
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => QuickPredictionInputScreen(services: services))),
+                  // Completes any missing details first (asked once), then opens
+                  // the Quick Prediction form on top of the Home tab.
+                  onTap: () async {
+                    if (!await ensureDetailsComplete(context, services) || !context.mounted) return;
+                    await Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => QuickPredictionInputScreen(services: services)));
+                  },
                 ),
               ),
               const SizedBox(width: 16),
@@ -78,6 +86,53 @@ class MainScreen extends StatelessWidget {
         const _InfoCardRow(),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+/// Below the header: "Complete your details" until they are done, then a reminder
+/// when the lifestyle answers are older than 90 days. Nothing otherwise.
+class _DetailsBanner extends StatelessWidget {
+  const _DetailsBanner({required this.services});
+  final AppServices services;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<UserDetails>(
+      valueListenable: services.profile.details,
+      builder: (context, d, _) {
+        final (String, VoidCallback)? banner = !d.isComplete
+            ? ('Complete your details (2 min) so each check asks less.',
+                () => ensureDetailsComplete(context, services))
+            : d.lifestyle.needsRetake(DateTime.now())
+                ? ('Time to retake your lifestyle check.',
+                    () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => LifestyleCheckScreen(services: services))))
+                : null;
+        if (banner == null) return const SizedBox.shrink();
+        final (text, onTap) = banner;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+          child: Material(
+            color: AppColors.mintCard,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              key: const Key('detailsBanner'),
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const Icon(Icons.assignment_ind_outlined, color: AppColors.green),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(text, style: AppFonts.body(size: 14))),
+                  const Icon(Icons.chevron_right),
+                ]),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

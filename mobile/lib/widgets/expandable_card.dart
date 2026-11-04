@@ -58,10 +58,18 @@ class _ExpandableCardState extends State<ExpandableCard> {
               padding: const EdgeInsets.fromLTRB(24, 18, 16, 14), // space inside: left, top, right, bottom
               child: Row(
                 children: [
-                  Text(widget.title, style: AppFonts.serif(size: 15)),
+                  // Flexible: on a narrow screen the texts shrink with "..." instead
+                  // of overflowing the card (the yellow-black stripes).
+                  Flexible(
+                    child: Text(widget.title, style: AppFonts.serif(size: 15),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
                   if (widget.trailingText != null) ...[
                     const SizedBox(width: 8),
-                    Text(widget.trailingText!, style: AppFonts.body(size: 15, color: AppColors.hint)),
+                    Flexible(
+                      child: Text(widget.trailingText!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: AppFonts.body(size: 15, color: AppColors.hint)),
+                    ),
                   ],
                   const Spacer(),
                   // Arrow points down when open, right when closed (as in the mockup).

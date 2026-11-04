@@ -1,89 +1,113 @@
-// What each Deep-Check Input form asks for.
+// What each Deep-Check Input form asks for (only the readings that change per
+// check; age, sex, history and lifestyle come from the saved details).
 //
-// Instead of writing three almost identical screens, ONE screen
-// (deep_check_input_screen.dart) reads this list and builds the right form.
-// To add or remove a question, edit the lists below - no layout code needed.
+// ONE screen (deep_check_input_screen.dart) reads these lists and builds the
+// form, so adding or removing a question needs no layout code. Each question's
+// [key] is the API field it fills (backend/app/schemas.py), except two the app
+// converts first in api_payloads.dart:
+//   weight_kg                  -> BMI (with the height from My details)
+//   fasting_blood_sugar_mg_dl  -> fasting_blood_sugar_over_120 (yes/no)
 //
-// Heart Disease: copied from the mockup (Figure 3.21).
-// Diabetes and Stroke: NO mockup exists, so their fields come from the report's
-//   data dictionary (Tables 3.22, 3.23), plus Age / Sex / BMI like the heart form.
+// Approved at CHECKPOINT 5 (docs/input_readings.md): heart asks "Have you done
+// an exercise stress test?" first; Yes = full model (10 readings), No = reduced
+// model (7 readings, no hospital-only tests).
 import 'disease.dart';
 
-/// A number typed into a rounded box (e.g. "Resting BP  146").
+/// A number typed into a rounded box (e.g. "Resting BP  146 mmHg").
 class NumberQuestion {
-  const NumberQuestion(this.label, {required this.sample, this.decimal = false});
+  const NumberQuestion(this.label, this.key,
+      {required this.sample, required this.min, required this.max,
+       this.unit, this.decimal = false});
   final String label;
-  final String sample;  // dummy starting value, like the numbers in the mockup
+  final String key;
+  final String sample;  // starting value (sample from the mockup) so the demo is quick
+  final num min, max;   // the same valid range the API enforces
+  final String? unit;   // "mmHg", "mg/dL", ...
   final bool decimal;   // true if 1.8 is allowed, false for whole numbers only
 }
 
 /// A YES/NO question with two radio buttons.
 class YesNoQuestion {
-  const YesNoQuestion(this.label, {this.sample = false});
+  const YesNoQuestion(this.label, this.key, {this.sample = false});
   final String label;
+  final String key;
   final bool sample;
+}
+
+/// One option of a drop-down: what the user reads, and what the API receives.
+class Choice {
+  const Choice(this.label, this.value);
+  final String label;
+  final String value;
 }
 
 /// A drop-down list (e.g. Chest Pain Type).
 class ChoiceQuestion {
-  const ChoiceQuestion(this.label, {required this.options});
+  const ChoiceQuestion(this.label, this.key, {required this.options});
   final String label;
-  final List<String> options; // the first one is pre-selected
+  final String key;
+  final List<Choice> options; // the first one is pre-selected
 }
 
 class DeepCheckForm {
-  const DeepCheckForm({
-    required this.numbers,
-    this.yesNo = const [],
-    this.choices = const [],
-  });
+  const DeepCheckForm({required this.numbers, this.yesNo = const [], this.choices = const []});
 
   final List<NumberQuestion> numbers;
   final List<YesNoQuestion> yesNo;
   final List<ChoiceQuestion> choices;
 
-  static const _sex = ChoiceQuestion('Sex', options: ['Male', 'Female']);
-  static const _smoking = ChoiceQuestion('Smoking History', options: ['Never', 'Former', 'Current']);
+  static const _weight =
+      NumberQuestion('Weight', 'weight_kg', sample: '70', min: 20, max: 350, unit: 'KG', decimal: true);
+  static const _glucose = NumberQuestion('Blood Glucose', 'blood_glucose_level',
+      sample: '140', min: 40, max: 400, unit: 'mg/dL');
 
-  /// Look up the form for a disease.
-  static DeepCheckForm forDisease(Disease d) => switch (d) {
-        Disease.heart => const DeepCheckForm(
+  /// Look up the form for a disease. [stressTest] only matters for heart.
+  static DeepCheckForm forDisease(Disease d, {bool stressTest = true}) => switch (d) {
+        Disease.heart => DeepCheckForm(
             numbers: [
-              NumberQuestion('Age', sample: '58'),
-              NumberQuestion('BMI', sample: '41.5', decimal: true),
-              NumberQuestion('Resting BP', sample: '146'),
-              NumberQuestion('Cholesterol Level', sample: '236'),
-              NumberQuestion('Fasting Blood Sugar', sample: '110'),
-              NumberQuestion('Max Heart Rate', sample: '132'),
-              NumberQuestion('ST Depression', sample: '1.8', decimal: true),
-              NumberQuestion('Major Vessel Number', sample: '1'),
+              const NumberQuestion('Resting BP', 'resting_bp',
+                  sample: '146', min: 60, max: 250, unit: 'mmHg'),
+              const NumberQuestion('Cholesterol Level', 'cholesterol',
+                  sample: '236', min: 80, max: 700, unit: 'mg/dL'),
+              const NumberQuestion('Fasting Blood Sugar', 'fasting_blood_sugar_mg_dl',
+                  sample: '110', min: 40, max: 400, unit: 'mg/dL'),
+              // the three hospital-only readings (exercise stress test)
+              if (stressTest) ...const [
+                NumberQuestion('Max Heart Rate', 'max_heart_rate',
+                    sample: '132', min: 50, max: 230, unit: 'bpm'),
+                NumberQuestion('ST Depression', 'st_depression',
+                    sample: '1.8', min: -3, max: 7, unit: 'mm', decimal: true),
+              ],
             ],
-            yesNo: [YesNoQuestion('High Blood Pressure?', sample: true)],
-            choices: [
-              _sex,
-              ChoiceQuestion('Chest Pain Type', options: [
-                'Typical Angina', 'Atypical Angina', 'Non-anginal Pain', 'Asymptomatic',
+            yesNo: [
+              if (stressTest)
+                const YesNoQuestion('Chest pain during the stress test?', 'exercise_induced_angina',
+                    sample: true),
+            ],
+            choices: const [
+              ChoiceQuestion('Chest Pain Type', 'chest_pain_type', options: [
+                Choice('Typical Angina', 'typical angina'),
+                Choice('Atypical Angina', 'atypical angina'),
+                Choice('Non-anginal Pain', 'non-anginal'),
+                Choice('No chest pain (asymptomatic)', 'asymptomatic'),
+              ]),
+              ChoiceQuestion('Resting ECG Result', 'resting_ecg', options: [
+                Choice('Normal', 'normal'),
+                Choice('ST-T wave abnormality', 'st-t abnormality'),
+                Choice('Left ventricular hypertrophy', 'lv hypertrophy'),
               ]),
             ],
           ),
-        Disease.diabetes => const DeepCheckForm(
-            numbers: [
-              NumberQuestion('Age', sample: '58'),
-              NumberQuestion('BMI', sample: '41.5', decimal: true),
-              NumberQuestion('HbA1c Level', sample: '6.6', decimal: true),
-              NumberQuestion('Glucose Level', sample: '140'),
-            ],
-            yesNo: [YesNoQuestion('Hypertension?', sample: true)],
-            choices: [_sex, _smoking],
-          ),
-        Disease.stroke => const DeepCheckForm(
-            numbers: [
-              NumberQuestion('Age', sample: '58'),
-              NumberQuestion('BMI', sample: '41.5', decimal: true),
-              NumberQuestion('Glucose Level', sample: '140'),
-            ],
-            yesNo: [YesNoQuestion('Hypertension?', sample: true)],
-            choices: [_sex, _smoking],
-          ),
+        Disease.diabetes => const DeepCheckForm(numbers: [
+            _weight,
+            NumberQuestion('HbA1c Level', 'hba1c_level',
+                sample: '6.6', min: 3, max: 15, unit: '%', decimal: true),
+            _glucose,
+          ]),
+        Disease.stroke => const DeepCheckForm(numbers: [
+            _weight,
+            NumberQuestion('Average Glucose', 'avg_glucose_level',
+                sample: '140', min: 40, max: 400, unit: 'mg/dL', decimal: true),
+          ]),
       };
 }

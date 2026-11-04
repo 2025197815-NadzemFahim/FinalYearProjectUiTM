@@ -11,8 +11,9 @@
 //
 //   | Log out            > |
 //
-// Logout is real (use case Table 3.17). The other buttons have no mockup of
-// their own yet, so they show a "not designed yet" message (showComingSoon).
+// Logout is real (use case Table 3.17). Edit Profile and the "Your health details"
+// card open My details, Medical history and the Lifestyle check (task U4).
+// My Activity / Settings / Privacy have no mockup yet ("not designed yet").
 // =============================================================================
 import 'package:flutter/material.dart';
 
@@ -22,12 +23,18 @@ import '../theme/app_theme.dart';
 import '../widgets/coming_soon.dart';
 import '../widgets/menu_card.dart';
 import '../widgets/phone_width.dart';
+import 'lifestyle_check_screen.dart';
+import 'medical_history_screen.dart';
+import 'my_details_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.services, required this.user});
 
   final AppServices services;
   final AppUser user;
+
+  void _open(BuildContext context, Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
   Future<void> _confirmLogout(BuildContext context) async {
     // Ask first: logging out by accident is annoying.
@@ -68,10 +75,32 @@ class ProfileScreen extends StatelessWidget {
             Center(
               child: _GreyPillButton(
                 label: 'Edit Profile',
-                onTap: () => showComingSoon(context, 'Edit Profile'),
+                onTap: () => _open(context, MyDetailsScreen(services: services)),
               ),
             ),
             const SizedBox(height: 28),
+            // The details every check re-uses (asked once, editable here).
+            MenuCard(items: [
+              MenuItem(
+                key: const Key('menuMyDetails'),
+                icon: Icons.badge,
+                label: 'My details',
+                onTap: () => _open(context, MyDetailsScreen(services: services)),
+              ),
+              MenuItem(
+                key: const Key('menuHistory'),
+                icon: Icons.medical_services,
+                label: 'Medical history',
+                onTap: () => _open(context, MedicalHistoryScreen(services: services)),
+              ),
+              MenuItem(
+                key: const Key('menuLifestyle'),
+                icon: Icons.directions_run,
+                label: 'Lifestyle check',
+                onTap: () => _open(context, LifestyleCheckScreen(services: services)),
+              ),
+            ]),
+            const SizedBox(height: 24),
             MenuCard(items: [
               MenuItem(
                 icon: Icons.access_time_filled,

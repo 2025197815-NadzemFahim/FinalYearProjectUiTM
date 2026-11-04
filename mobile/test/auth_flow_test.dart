@@ -6,11 +6,15 @@
 import 'dart:async';
 
 import 'package:chronic_disease_app/app.dart';
+import 'package:chronic_disease_app/models/user_details.dart';
 import 'package:chronic_disease_app/navigation/app_tabs.dart';
 import 'package:chronic_disease_app/services/auth_service.dart';
+import 'package:chronic_disease_app/services/profile_service.dart';
 import 'package:chronic_disease_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'api_payloads_test.dart' show sampleDetails;
 
 /// Pretends to be Firebase: one valid account, and a stream like authStateChanges().
 class FakeAuthService implements AuthService {
@@ -71,7 +75,9 @@ class FakeAuthService implements AuthService {
   Future<String?> idToken() async => _user == null ? null : 'fake-token';
 }
 
-Future<FakeAuthService> pumpApp(WidgetTester tester) async {
+/// [details]: the user's saved details at the start (null = a brand-new user who
+/// still has to complete them).
+Future<FakeAuthService> pumpApp(WidgetTester tester, {UserDetails? details}) async {
   // 600 x 1000 logical pixels. Wider than a phone because the test font draws
   // every letter as a full square (much wider than Poppins).
   tester.view.physicalSize = const Size(1800, 3000);
@@ -79,7 +85,7 @@ Future<FakeAuthService> pumpApp(WidgetTester tester) async {
   addTearDown(tester.view.reset);
 
   final auth = FakeAuthService();
-  await tester.pumpWidget(App(auth: auth));
+  await tester.pumpWidget(App(auth: auth, profile: ProfileService(initial: details)));
   await tester.pumpAndSettle();
   return auth;
 }
@@ -91,8 +97,31 @@ Future<void> typeAndLogin(WidgetTester tester, String email, String password) as
   await tester.pumpAndSettle();
 }
 
-/// Scrolls until [finder] is on screen, then taps it.
+/// Scrolls the current page down until the widget with [key] has been built and is on screen.
+Future<void> scrollTo(WidgetTester tester, String key) =>
+    tester.scrollUntilVisible(find.byKey(Key(key)), 150, scrollable: find.byType(Scrollable).first);
+
+/// Picks [answer] inside the question with [key] (a ChoiceQuestionField).
+Future<void> answer(WidgetTester tester, String key, String answer) async {
+  await scrollTo(tester, key);
+  await tester.tap(find.descendant(of: find.byKey(Key(key)), matching: find.text(answer)));
+  await tester.pumpAndSettle();
+}
+
+/// Types [text] into the number box with [key].
+Future<void> typeNumber(WidgetTester tester, String key, String text) async {
+  await scrollTo(tester, key);
+  await tester.enterText(
+      find.descendant(of: find.byKey(Key(key)), matching: find.byType(EditableText)), text);
+  await tester.pumpAndSettle();
+}
+
+/// Scrolls until [finder] is on screen, then taps it. Long pages build their
+/// bottom items lazily, so first scroll down until the widget exists at all.
 Future<void> scrollAndTap(WidgetTester tester, Finder finder) async {
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(finder, 150, scrollable: find.byType(Scrollable).first);
+  }
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
@@ -219,13 +248,16 @@ void main() {
 
   // ------------------------------------- Quick -> Deep -> History flow
   testWidgets('quick prediction -> deep check -> result saved in History', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, details: sampleDetails());
     await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
 
-    // Main -> Quick Prediction Input (sample values already filled in)
+    // Details complete -> straight to Quick Prediction, which only asks what changes
+    expect(find.byKey(const Key('detailsBanner')), findsNothing);
     await tester.tap(find.byKey(const Key('predictCard')));
     await tester.pumpAndSettle();
-    expect(find.text('41.5'), findsOneWidget); // BMI calculated from 120 kg / 170 cm
+    expect(find.text('Using your saved details'), findsOneWidget);
+    expect(find.text('41.5'), findsOneWidget); // BMI: last weight 120 kg + saved height 170 cm
+    expect(find.text('Age'), findsNothing);    // age, sex, height... come from the profile
 
     // Check -> Quick Result, highest risk first and opened
     await scrollAndTap(tester, find.byKey(const Key('quickCheck')));
@@ -233,10 +265,17 @@ void main() {
     expect(find.text('50%'), findsOneWidget);
     expect(find.textContaining('moderate risk of heart disease'), findsOneWidget);
 
-    // Deep Check -> Deep-Check Input for Heart Disease
+    // Deep Check -> heart asks about the stress test first -> full form
     await tester.tap(find.byKey(const Key('deepCheck-heart')));
     await tester.pumpAndSettle();
+    expect(find.text('Have you done an exercise stress test recently?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('stressYes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Max Heart Rate'), findsOneWidget);
+    await scrollTo(tester, 'deepCheckSubmit');
     expect(find.text('Chest Pain Type'), findsOneWidget);
+    expect(find.text('Resting ECG Result'), findsOneWidget);
+    expect(find.text('Major Vessel Number'), findsNothing); // not a model input
 
     // Submit -> Deep-Check Result
     await scrollAndTap(tester, find.byKey(const Key('deepCheckSubmit')));
@@ -257,7 +296,7 @@ void main() {
   });
 
   testWidgets('Main "View Prediction History" card switches to the History tab', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, details: sampleDetails());
     await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
     await tester.tap(find.byKey(const Key('historyCard')));
     await tester.pumpAndSettle();
@@ -266,7 +305,7 @@ void main() {
   });
 
   testWidgets('closed result card opens; Diabetes deep check uses its own form', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, details: sampleDetails());
     await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
     await tester.tap(find.byKey(const Key('predictCard')));
     await tester.pumpAndSettle();
@@ -280,8 +319,98 @@ void main() {
 
     await tester.tap(find.byKey(const Key('deepCheck-diabetes')));
     await tester.pumpAndSettle();
+    // Only the per-check readings: no stress-test question, no smoking (from Lifestyle)
     expect(find.text('HbA1c Level'), findsOneWidget);
-    expect(find.text('Smoking History'), findsOneWidget);
+    expect(find.text('Weight'), findsOneWidget);
+    expect(find.text('Smoking History'), findsNothing);
     expect(find.text('Chest Pain Type'), findsNothing); // heart-only question
+    expect(find.byKey(const Key('stressYes')), findsNothing);
+  });
+
+  testWidgets('heart without a stress test uses the reduced form', (tester) async {
+    await pumpApp(tester, details: sampleDetails());
+    await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
+    await tester.tap(find.byKey(const Key('predictCard')));
+    await tester.pumpAndSettle();
+    await scrollAndTap(tester, find.byKey(const Key('quickCheck')));
+    await tester.tap(find.byKey(const Key('deepCheck-heart')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('stressNo')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('without a stress test'), findsOneWidget);
+    expect(find.text('Resting BP'), findsOneWidget);
+    expect(find.text('Max Heart Rate'), findsNothing); // the 3 hospital-only readings
+    expect(find.text('ST Depression'), findsNothing);
+    await scrollAndTap(tester, find.byKey(const Key('deepCheckSubmit')));
+    expect(find.byKey(const Key('deepPercent')), findsOneWidget);
+  });
+
+  testWidgets('new user: details asked once (My details -> History -> Lifestyle), then the check',
+      (tester) async {
+    await pumpApp(tester); // no saved details
+    await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
+    expect(find.byKey(const Key('detailsBanner')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('predictCard')));
+    await tester.pumpAndSettle();
+    expect(find.text('Complete your details'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('startDetails')));
+    await tester.pumpAndSettle();
+
+    // ---- My details (1-9). Saving with nothing filled shows the errors first.
+    expect(find.text('My details'), findsOneWidget);
+    await scrollAndTap(tester, find.byKey(const Key('saveMyDetails')));
+    expect(find.textContaining('Some answers are missing'), findsOneWidget);
+    // Back to the very top (the date of birth is the first question)
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 3000));
+    await tester.pumpAndSettle();
+    expect(find.text('Please choose your date of birth'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dobButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK')); // the date picker's default date is fine
+    await tester.pumpAndSettle();
+    await answer(tester, 'sex', 'Male');
+    await typeNumber(tester, 'height', '170');
+    await typeNumber(tester, 'income', '6500');
+    await answer(tester, 'education', 'SPM (completed Form 5)');
+    await answer(tester, 'coverage', 'Yes');
+    await answer(tester, 'married', 'Yes');
+    await answer(tester, 'work', 'Private sector employee');
+    await answer(tester, 'residence', 'Urban (town or city)');
+    await scrollAndTap(tester, find.byKey(const Key('saveMyDetails')));
+
+    // ---- Medical history (10-14)
+    expect(find.text('Medical history'), findsOneWidget);
+    for (final key in ['highBp', 'highChol', 'cholChecked', 'heartDisease', 'walking']) {
+      await answer(tester, key, 'No');
+    }
+    await scrollAndTap(tester, find.byKey(const Key('saveHistory')));
+
+    // ---- Lifestyle check (15-19): levels shown after saving
+    expect(find.text('Lifestyle check'), findsOneWidget);
+    await answer(tester, 'smoked100', 'No');
+    await answer(tester, 'smokesNow', 'No');
+    await answer(tester, 'activity', '1-2 times a week');
+    await answer(tester, 'fruit', 'Once a day');
+    await answer(tester, 'vegetables', 'A few times a week');
+    await answer(tester, 'drinks', 'No');
+    await scrollAndTap(tester, find.byKey(const Key('saveLifestyle')));
+    expect(find.text('Your lifestyle'), findsOneWidget);
+    expect(find.text('Semi-active'), findsOneWidget);
+    expect(find.text('Never smoked'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('lifestyleDone')));
+    await tester.pumpAndSettle();
+
+    // ---- Then the Quick Prediction opens, already using the saved details
+    expect(find.text('Using your saved details'), findsOneWidget);
+    await typeNumber(tester, 'weight', '70');
+    await scrollAndTap(tester, find.byKey(const Key('quickCheck')));
+    expect(find.text('50%'), findsOneWidget);
+
+    // Back on Main, the banner is gone (details complete, lifestyle just taken)
+    AppTabs.goTo(tester.element(find.byType(Scaffold).last), AppTabs.home);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('detailsBanner')), findsNothing);
   });
 }
