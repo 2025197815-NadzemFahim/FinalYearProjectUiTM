@@ -208,3 +208,7 @@ the ERD (Figure 3.14) need the same update.
 1-3, 5, 8: approved as proposed. 4: health coverage **option (i)** (citizen, insurance/takaful or panel
 clinic = yes). 7: retake reminder after **90 days**. 6: income **pending**. You will send the DOSM HIES 2022
 percentiles; until then the income question is built but its RM-to-band table is a placeholder.
+
+### Change 2026-11-04
+Profile readings 1-2 (date of birth, sex) and the contact number moved to **Create Account** (the only
+place they are asked). In section D, `dateOfBirth` and `contactNumber` are written at registration.

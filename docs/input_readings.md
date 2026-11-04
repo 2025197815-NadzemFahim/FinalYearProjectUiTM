@@ -175,3 +175,8 @@ once you approve the model at Checkpoint 4.
    clinic check (ECG, cholesterol, fasting blood sugar). BMI, Major Vessel Number and High Blood
    Pressure? are removed from the heart form; Resting ECG and Chest pain during exercise are added.
 4. **BMI is always calculated** from height (Profile) and weight (each check), never typed.
+
+### Change 2026-11-04
+Reading 1 (age) is now a **date of birth** asked **only at Create Account**, together with sex (2) and
+the contact number; My details asks readings 3-9. Age is calculated from the date of birth on the
+day of each check.

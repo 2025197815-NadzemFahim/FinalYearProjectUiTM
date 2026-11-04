@@ -40,7 +40,7 @@ Hours are rough estimates for working time, not compute time. Priority: **P1** =
 | **CP4** | **CHECKPOINT 4: results review; no backend switch without approval** | You | 14 | 1 | M3 | - |
 | I1 | `docs/input_readings.md`: every reading per layer/disease, unit, range, how obtained, shared? | Claude | 15 | 3 | final feature sets | P1 ✅ done 2026-10-28; CP5 approved 2026-10-29 |
 | **CP5** | **CHECKPOINT 5: approve inventory before any UI work** | You | 16 | - | I1 | - |
-| U0 | Connect the app to the real API (replaces dummy predictions; prerequisite for pre-fill to mean anything) | Claude structure, you finish | 17 | 4 | CP5 | P1 |
+| U0 | Connect the app to the real API (replaces dummy predictions; prerequisite for pre-fill to mean anything) | Claude structure, you finish | 17 | 4 | CP5 | P1 ✅ done 2026-11-04: `ApiPredictionService` + CORS; verified live against the running API |
 | U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 ✅ proposal in `docs/lifestyle_check_proposal.md`; CP6 approved 2026-10-29 (income table pending) |
 | **CP6** | **CHECKPOINT 6: approve readings, levels, mappings** | You | 19 | - | U1 | - |
 | U2 | Profile fields at sign-up + save to Firestore (age/DOB, sex, height, stable answers) | You (Claude structure) | 20 | 6 | CP6 | P1 |
@@ -193,3 +193,8 @@ the train/test split. Record it in the data card and limitations; it is not chan
 - Where each Layer 2 reading comes from (feeds I1): only the heart stress-test readings (thalch, exang,
   oldpeak) are hospital-only. Diabetes HbA1c and glucose and stroke glucose are routine clinic or
   home-meter tests. Everything else is self-report or a home measurement.
+- 2026-11-04: **Date of birth, sex and contact number are asked ONLY at Create Account** (not in My
+  details). The Age box became a date-of-birth picker, so age is calculated from today's date at each
+  check. Figure 3.16 changes (Age -> Date of birth). For U2: store `dateOfBirth` instead of `userAge`.
+- 2026-11-04: **U0 done.** App -> real API, CORS added to the backend (localhost only +
+  `CORS_ORIGINS`). The heart "no stress test" path shows a message until H1's endpoint exists.

@@ -3,10 +3,10 @@
 Shows the three parts: **AI model**, **Firebase** (database + login) and **UI** (Flutter app).
 Start everything **15 minutes before** the presentation, in this order. You need 3 PowerShell windows.
 
-> **Be honest about one thing:** the app's prediction screens still use **sample numbers**. The app
-> is not connected to the AI yet (next task, U0 in `docs/improvement_plan.md`). The **real AI** is
-> shown through the API page (step 2). Say: *"The AI works through the API, and connecting the app
-> to it is the next step."*
+> **The app now uses the real AI** (Window 2 must be running). Two things are still kept only in
+> the app's memory until Firestore saving is done (task U2): your saved details and History.
+> So, for the app part, **create a new account in the app first** (step 4): the seeded demo
+> accounts have no date of birth/sex in the app yet and would show "Account details missing".
 
 ---
 
@@ -34,7 +34,8 @@ Wait for "Loaded models: [...]" (Model 1 is 600 MB, so this takes about a minute
 cd C:\fyp\FinalYearProjectUiTM\mobile
 flutter run -d chrome
 ```
-Log in with a demo account from `backend/db_tool.py` (emails in `DEMO_USERS`, password `DEMO_PASSWORD`).
+The seeded demo accounts (`backend/db_tool.py`) are for steps 2-3 (the API page). For the app,
+create an account in step 4.
 
 ---
 
@@ -94,9 +95,17 @@ python -m backend.db_tool token ali@demo.com
 **b)** On the /docs page click **Authorize** (top right) → paste the token → Authorize.
 **c)** `POST /predict/deep/heart` → Try it out → paste → Execute:
 ```json
-{"age": 58, "sex": "male", "chest_pain_type": "asymptomatic", "resting_bp": 146,
- "cholesterol": 236, "fasting_blood_sugar_over_120": false, "resting_ecg": "normal",
- "max_heart_rate": 132, "exercise_induced_angina": true, "st_depression": 1.8}
+{
+  "age": 58, 
+  "sex": "male",
+  "chest_pain_type": "asymptomatic",
+  "resting_bp": 146,
+  "cholesterol": 236,
+  "fasting_blood_sugar_over_120": false,
+  "resting_ecg": "normal",
+  "max_heart_rate": 132, "exercise_induced_angina": true,
+  "st_depression": 1.8
+}
 ```
 The response has a `result_id`, so it was saved.
 
@@ -108,14 +117,19 @@ Say: *"Deep-check results are saved per user, and the security rules only let us
 
 ### 4. The app (3 min)
 Window 3 (Chrome). Press **F12** → phone icon to show it at phone size.
-1. **Login**: show the wrong-password popup, then a correct login.
-2. **Create Account** and **Forgot Password** screens (Firebase sends the reset).
-3. **Main** → **Predict a Disease** → Quick Prediction → **Check** → results → **Deep Check**
-   → result. *"These numbers are samples until the app is connected to the API."*
-4. **History** (grouped by date) → open an entry.
-5. **Profile** → **Log out**.
+1. **Login**: show the wrong-password popup.
+2. **Create Account** (date of birth, sex, contact are asked only here) → back to Login → log in
+   with the new account. Show **Forgot Password** too (Firebase sends the reset).
+3. **Main** → **Predict a Disease** → "Complete your details" → My details → Medical history →
+   Lifestyle check (show the levels, e.g. "Semi-active") → Quick Prediction now asks only 5 things
+   → **Check** → **real** percentages from the AI → **Deep Check** (heart asks about a stress test
+   first) → result with the model's own notes. *"Every check reuses the saved details, so the
+   Quick check asks 5 readings instead of 20."*
+4. **History** (grouped by date) → the new result is at the top.
+5. **Profile** → My details / Medical history / Lifestyle check → **Log out**.
 
-Say: *"All 10 interfaces from Section 3.5.4 are built and tested: 11 automated tests."*
+Say: *"All 10 interfaces from Section 3.5.4 are built, plus the details screens, and the app is
+connected to the AI: 32 automated tests."*
 
 ### 5. What's next (1 min)
 From `docs/improvement_plan.md`:

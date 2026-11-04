@@ -1,7 +1,8 @@
 # Mobile App Guide (Flutter)
 
-All 10 interfaces from report Section 3.5.4 are built (predictions and history use dummy data
-for now). **`docs/UI_GUIDE.md`** is the main guide to the screens: mockup → file mapping,
+All 10 interfaces from report Section 3.5.4 are built, plus My details, Medical history and the
+Lifestyle check. **Predictions come from the real AI** through the FastAPI backend; saved details
+and History are still kept in memory (tasks U2 and 3 in `docs/improvement_plan.md`). **`docs/UI_GUIDE.md`** is the main guide to the screens: mockup → file mapping,
 Flutter concepts and exercises. This file covers running the app and connecting the real backend.
 
 All commands: PowerShell, inside `C:\fyp\FinalYearProjectUiTM\mobile`.
@@ -16,12 +17,25 @@ cd C:\fyp\FinalYearProjectUiTM\firebase
 firebase emulators:start --import ./emulator-data --export-on-exit
 ```
 
-**Terminal 2 — the app:**
+**Terminal 2 — the API (the AI models):**
+```powershell
+cd C:\fyp\FinalYearProjectUiTM
+venv\Scripts\activate
+uvicorn backend.app.main:app --reload
+```
+Wait for "Loaded models: [...]" (about a minute). Without it, checks show *"Can't reach the
+prediction server… Is the API running?"*. To try the screens without the API (sample numbers):
+`flutter run -d chrome --dart-define=USE_DEMO_PREDICTIONS=true`.
+
+**Terminal 3 — the app:**
 ```powershell
 cd C:\fyp\FinalYearProjectUiTM\mobile
 flutter run -d chrome
 ```
-Log in with a seeded demo account (`backend/db_tool.py`, created by `python -m backend.db_tool seed`).
+**Until profile saving uses Firestore (U2), create an account in the same app session first.**
+Date of birth, sex and contact are asked only at Create Account and are kept in memory, so the
+seeded demo accounts (and accounts made in an earlier run) show *"Account details missing"* when
+starting a check. Create Account → log in with it → complete your details → check.
 
 While it runs: press **r** for hot reload (instant UI changes, keeps you logged in),
 **R** for hot restart, **q** to quit.
@@ -32,9 +46,11 @@ builds. It disappears with a real Firebase project.
 **On an Android emulator** (once you set one up in Android Studio): `flutter run` and pick it.
 The app automatically uses `10.0.2.2` — the Android emulator's address for your PC.
 **On a real phone over Wi-Fi:** `flutter run --dart-define=EMULATOR_HOST=<your PC's IP>`
-(find it with `ipconfig`), and start the emulators with `--host 0.0.0.0` in `firebase.json`.
+(find it with `ipconfig`), start the emulators with `--host 0.0.0.0` in `firebase.json`, and the
+API with `uvicorn backend.app.main:app --host 0.0.0.0`. The same address is used for both
+(`config/api_config.dart`).
 
-**Tests** (no emulator needed, ~5 s): `flutter test` → expect `All tests passed!` (11 tests).
+**Tests** (no emulator or API needed, ~10 s): `flutter test` → expect `All tests passed!` (32 tests).
 **Lint:** `flutter analyze` → expect `No issues found!`
 
 ---
@@ -87,29 +103,26 @@ More concepts, explained for this project: `docs/UI_GUIDE.md` §7.
 
 ---
 
-## 4. Connecting the real data (what is still dummy)
+## 4. Connecting the real data
 
-The screens are finished. Three services still return sample data. Replace their **bodies**
-only; screens and tests don't change.
-
-| Service | Now | Replace with |
+| Service | Now | Next |
 |---|---|---|
-| `PredictionService.quickPredict` | fixed 50/40/20 % | `flutter pub add http`, then `POST /predict/quick` on FastAPI. The form must send **all 19 fields** in `backend/app/schemas.py`; the mockup form has 11 (see UI_GUIDE §9 #4) |
-| `PredictionService.deepCheck` | fixed 80/62/35 % | `POST /predict/deep/{disease}` with `Authorization: Bearer ${await auth.idToken()}` so the backend saves it to history |
-| `HistoryService` | in-memory list | read `users/{uid}/deepCheckResults` ordered by `created_at` (`cloud_firestore`), or `GET /history` |
-| `FirebaseAuthService.register` | saves name only | also write `users/{uid}` (step below) |
+| `ApiPredictionService` (`services/prediction_service.dart`) | ✅ **real AI**: `POST /predict/quick` and `/predict/deep/{disease}`; sends the login token so deep checks are saved; clear messages for every failure. Requests are built in `models/api_payloads.dart` | the "no stress test" heart check gets its endpoint after the reduced model (H1) is trained and approved; until then it shows a message |
+| `ProfileService` | in memory | **U2 (you):** read/write `users/{uid}` (layout in `docs/lifestyle_check_proposal.md` section D) |
+| `HistoryService` | in memory (7 samples + this session's checks) | read `users/{uid}/deepCheckResults` ordered by `created_at` (`cloud_firestore`), or `GET /history` |
 
-**Saving the profile to Firestore** (contact, age, sex from Create Account):
-after registering, write `users/{uid}`
-(`userName`, `userEmail`, `userAge`, `userSex`, `userCreate_at: FieldValue.serverTimestamp()`).
-Needs `flutter pub add cloud_firestore` and, in `main.dart`,
+**Saving the profile to Firestore (U2).** Create Account asks **date of birth**, sex and contact
+(the only place they are asked). Write them to `users/{uid}` while the new user is still signed in,
+i.e. inside `register()` before its `signOut()`. Store `dateOfBirth` (a timestamp) instead of
+`userAge`: the rules currently require `userAge` (18-120) and allow only 5 fields, so extend
+`validProfile` in `firebase/firestore.rules` with type/range checks for every new field, and update
+`docs/DATABASE.md` and the ERD. Needs `flutter pub add cloud_firestore` and, in `main.dart`,
 `FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost(), 8080);`.
-The security rules **require** age 18–120, sex `male`/`female`, and the account's own email.
-The form already checks age 18–120; send sex in lower case. Put this write in a new
-`services/profile_service.dart`.
 
-Calling the backend from the app: on **web** use `http://127.0.0.1:8000`; on the **Android
-emulator** use `http://10.0.2.2:8000` (same reason as the Firebase emulator).
+The API address for each device is in `config/api_config.dart` (`127.0.0.1:8000` for Chrome,
+`10.0.2.2:8000` for the Android emulator, `--dart-define=API_URL=...` to override). The API allows
+browser calls from any `localhost`/`127.0.0.1` port (CORS, `backend/app/main.py`); add a hosted web
+address with the `CORS_ORIGINS` environment variable.
 
 ---
 
