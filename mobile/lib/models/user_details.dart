@@ -2,7 +2,7 @@
 // The user's saved details: asked ONCE, then used to pre-fill every check.
 // Approved in docs/input_readings.md (CHECKPOINT 5) and
 // docs/lifestyle_check_proposal.md (CHECKPOINT 6):
-//   UserProfile     readings 1-9   (My details: stable facts)
+//   UserProfile     readings 1-9   (age, sex + contact from Create Account; the rest in My details)
 //   MedicalHistory  readings 10-14 ("Has a doctor ever told you...")
 //   LifestyleAnswers readings 15-19 (the retakeable Lifestyle check)
 //
@@ -44,11 +44,16 @@ enum Residence {
   final String label;
 }
 
-/// Readings 1-9. Null = not answered yet.
+/// Readings 1-9 + contact number. Null = not answered yet.
+///
+/// Date of birth, sex and contact number are asked ONLY at Create Account
+/// (decisions 2026-11-04); the rest in My details. Age is calculated from the
+/// date of birth on the day of each check.
 class UserProfile {
   const UserProfile({
     this.dateOfBirth,
     this.sex,
+    this.contactNumber,
     this.heightCm,
     this.education,
     this.incomeMonthlyRm,
@@ -58,8 +63,11 @@ class UserProfile {
     this.residence,
   });
 
+  // ---- from Create Account
   final DateTime? dateOfBirth;
   final String? sex;              // 'male' or 'female' (the API's spelling)
+  final String? contactNumber;    // not used by any model
+  // ---- from My details
   final double? heightCm;
   final Education? education;
   final double? incomeMonthlyRm;  // monthly HOUSEHOLD income in ringgit
@@ -68,18 +76,41 @@ class UserProfile {
   final WorkType? workType;
   final Residence? residence;
 
-  bool get isComplete => dateOfBirth != null && sex != null && heightCm != null &&
-      education != null && incomeMonthlyRm != null && healthCoverage != null &&
-      everMarried != null && workType != null && residence != null;
+  /// The Create Account part (date of birth, sex). Can't be completed in My details.
+  bool get accountComplete => dateOfBirth != null && sex != null;
 
-  /// Age in whole years on [day]: recalculated every check, so it never goes stale.
-  int? ageOn(DateTime day) {
-    final dob = dateOfBirth;
-    if (dob == null) return null;
-    var age = day.year - dob.year;
-    if (day.month < dob.month || (day.month == dob.month && day.day < dob.day)) age--;
+  /// The My details part.
+  bool get detailsComplete => heightCm != null && education != null &&
+      incomeMonthlyRm != null && healthCoverage != null && everMarried != null &&
+      workType != null && residence != null;
+
+  bool get isComplete => accountComplete && detailsComplete;
+
+  /// Age in whole years on [day] (today, at each check): it never goes out of date.
+  int? ageOn(DateTime day) => dateOfBirth == null ? null : ageFromBirth(dateOfBirth!, day);
+
+  /// Whole years from [birth] to [day]: one less if this year's birthday hasn't come yet.
+  static int ageFromBirth(DateTime birth, DateTime day) {
+    var age = day.year - birth.year;
+    if (day.month < birth.month || (day.month == birth.month && day.day < birth.day)) age--;
     return age;
   }
+
+  /// Copy with the My details answers replaced and the Create Account part kept.
+  UserProfile withDetails({
+    required double heightCm,
+    required Education education,
+    required double incomeMonthlyRm,
+    required bool healthCoverage,
+    required bool everMarried,
+    required WorkType workType,
+    required Residence residence,
+  }) => UserProfile(
+        dateOfBirth: dateOfBirth, sex: sex, contactNumber: contactNumber,
+        heightCm: heightCm, education: education, incomeMonthlyRm: incomeMonthlyRm,
+        healthCoverage: healthCoverage, everMarried: everMarried, workType: workType,
+        residence: residence,
+      );
 }
 
 /// Readings 10-14: "Has a doctor, nurse or other health professional ever told you...".

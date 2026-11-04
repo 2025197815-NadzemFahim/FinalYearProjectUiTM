@@ -20,6 +20,8 @@ class RoundedField extends StatelessWidget {
     this.onSubmitted,
     this.fieldKey,
     this.inputFormatters,
+    this.readOnly = false,
+    this.onTap,
   });
 
   final TextEditingController controller;
@@ -33,7 +35,9 @@ class RoundedField extends StatelessWidget {
   final Iterable<String>? autofillHints;
   final ValueChanged<String>? onSubmitted;
   final Key? fieldKey;
-  final List<TextInputFormatter>? inputFormatters; // e.g. digits only for Age
+  final List<TextInputFormatter>? inputFormatters; // e.g. digits only for a number
+  final bool readOnly;        // true = no keyboard, e.g. a date chosen from a calendar
+  final VoidCallback? onTap;  // runs when the field is tapped (e.g. opens the calendar)
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,8 @@ class RoundedField extends StatelessWidget {
           autofillHints: autofillHints,
           onFieldSubmitted: onSubmitted,
           inputFormatters: inputFormatters,
+          readOnly: readOnly,
+          onTap: onTap,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppFonts.body(size: 15, color: AppColors.hint),

@@ -1,16 +1,20 @@
 // =============================================================================
 // 2. CREATE ACCOUNT INTERFACE (Figure 3.16) - use case "Register" (Table 3.12)
 //
-// First/last name side by side, then e-mail, password, contact number, age,
-// a Male/Female toggle and the Create Account button. Green waves top-left
-// and bottom-left.
+// First/last name side by side, then e-mail, password, contact number, date of
+// birth, a Male/Female toggle and the Create Account button. Green waves
+// top-left and bottom-left.
+//
+// Date of birth, sex and contact are asked ONLY here (decisions 2026-11-04);
+// every check reuses them. The mockup's "Age" box became "Date of birth" so the
+// age is calculated from today's date at each check and never goes out of date.
 //
 // Assumption: the mockup draws the eye icon on the E-mail row, which looks
 // like a copy-paste slip; it is placed on the Password row, where it works.
 // =============================================================================
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../models/user_details.dart';
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -35,7 +39,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _contact = TextEditingController();
-  final _age = TextEditingController();
+  final _dobText = TextEditingController(); // shows the chosen date, e.g. "20/5/1990"
+  DateTime? _dob;
 
   String _sex = 'Male';     // the toggle's current choice
   bool _hidePassword = true;
@@ -43,7 +48,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _email, _password, _contact, _age]) {
+    for (final c in [_firstName, _lastName, _email, _password, _contact, _dobText]) {
       c.dispose();
     }
     super.dispose();
@@ -51,6 +56,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   String? _required(String? v, String what) =>
       (v == null || v.trim().isEmpty) ? 'Enter your $what.' : null;
+
+  /// Opens a calendar. Only adults can be chosen: the app is for 18+, the same
+  /// rule as the database (firestore.rules: 18-120).
+  Future<void> _pickDob() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dob ?? DateTime(now.year - 30, now.month, now.day),
+      firstDate: DateTime(now.year - 120, now.month, now.day),
+      lastDate: DateTime(now.year - 18, now.month, now.day),
+      helpText: 'Date of birth',
+    );
+    if (picked == null) return;
+    setState(() {
+      _dob = picked;
+      _dobText.text = '${picked.day}/${picked.month}/${picked.year}';
+    });
+  }
 
   Future<void> _submit() async {
     if (_loading || !_formKey.currentState!.validate()) return;
@@ -73,6 +96,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await showErrorDialog(context, 'Could not create account', error);
       return;
     }
+    // Date of birth, sex and contact are asked ONLY here; every check reuses them.
+    await widget.services.profile.saveAccount(
+      dateOfBirth: _dob!,
+      sex: _sex.toLowerCase(), // 'male' / 'female', the API's spelling
+      contact: _contact.text.trim(),
+    );
+    if (!mounted) return;
+
     // Success: go back to Login (Table 3.12) and show a short message there.
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
@@ -171,17 +202,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                         const SizedBox(height: 22),
                         RoundedField(
-                          fieldKey: const Key('age'),
-                          controller: _age,
-                          hint: 'Age',
+                          fieldKey: const Key('dob'),
+                          controller: _dobText,
+                          hint: 'Date of birth',
                           icon: Icons.calendar_month,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          validator: (v) {
-                            final age = int.tryParse(v ?? '');
-                            // Same rule as the database (firestore.rules): 18-120.
-                            if (age == null || age < 18 || age > 120) return 'Age must be 18-120.';
-                            return null;
+                          readOnly: true,     // no keyboard: tapping opens the calendar
+                          onTap: _pickDob,
+                          validator: (_) {
+                            if (_dob == null) return 'Choose your date of birth.';
+                            final age = UserProfile.ageFromBirth(_dob!, DateTime.now());
+                            return (age < 18 || age > 120) ? 'You must be 18-120 years old.' : null;
                           },
                         ),
                         const SizedBox(height: 40),

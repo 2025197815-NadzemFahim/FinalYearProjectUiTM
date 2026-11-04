@@ -1,6 +1,8 @@
 // =============================================================================
-// MY DETAILS (readings 1-9): stable facts, asked once and editable from Profile.
+// MY DETAILS (readings 3-9): stable facts, asked once and editable from Profile.
 // Approved at CHECKPOINT 5/6: docs/input_readings.md, docs/lifestyle_check_proposal.md.
+// Age and sex (readings 1-2) and the contact number are asked ONLY at Create
+// Account (decision 2026-11-04); this screen just shows them.
 //
 // Pops with `true` when saved, so the "complete your details" flow can continue.
 // =============================================================================
@@ -29,15 +31,12 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
 
   // Start from what is already saved, so this screen also works for editing.
   late final UserProfile _saved = widget.services.profile.details.value.profile;
-  late DateTime? _dob = _saved.dateOfBirth;
-  late String? _sex = _saved.sex;
   late Education? _education = _saved.education;
   late bool? _coverage = _saved.healthCoverage;
   late bool? _married = _saved.everMarried;
   late WorkType? _work = _saved.workType;
   late Residence? _residence = _saved.residence;
   bool _saving = false;
-  String? _dobError;
 
   static String _num(double? v) =>
       v == null ? '' : (v == v.roundToDouble() ? v.toInt().toString() : '$v');
@@ -49,46 +48,28 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    final adult = DateTime(now.year - 18, now.month, now.day); // the app is for adults (18+)
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dob ?? DateTime(now.year - 40),
-      firstDate: DateTime(now.year - 120),
-      lastDate: adult,
-      helpText: 'Date of birth',
-    );
-    if (picked != null) {
-      setState(() {
-        _dob = picked;
-        _dobError = null;
-      });
-    }
-  }
-
   Future<void> _save() async {
-    final ok = _formKey.currentState!.validate();
-    if (_dob == null) setState(() => _dobError = 'Please choose your date of birth');
-    if (!ok || _dob == null) return DetailsPage.showMissing(context);
+    if (!_formKey.currentState!.validate()) return DetailsPage.showMissing(context);
     setState(() => _saving = true);
-    await widget.services.profile.saveProfile(UserProfile(
-      dateOfBirth: _dob,
-      sex: _sex,
+    // withDetails keeps the age, sex and contact from Create Account
+    await widget.services.profile.saveProfile(_saved.withDetails(
       heightCm: double.parse(_height.text),
-      education: _education,
+      education: _education!,
       incomeMonthlyRm: double.parse(_income.text),
-      healthCoverage: _coverage,
-      everMarried: _married,
-      workType: _work,
-      residence: _residence,
+      healthCoverage: _coverage!,
+      everMarried: _married!,
+      workType: _work!,
+      residence: _residence!,
     ));
     if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final dobText = _dob == null ? 'Choose date' : '${_dob!.day}/${_dob!.month}/${_dob!.year}';
+    final age = _saved.ageOn(DateTime.now());
+    final fromAccount = age == null
+        ? 'Age and sex: not found (they are entered at Create Account).'
+        : 'Age $age · ${_saved.sex == 'male' ? 'Male' : 'Female'} (from your account)';
     return DetailsPage(
       title: 'My details',
       subtitle: 'Asked once and used in every check. You can change them anytime in Profile.',
@@ -97,26 +78,10 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
       saving: _saving,
       onSave: _save,
       children: [
-        // 1. Date of birth: age is recalculated on the day of each check
-        Text('Date of birth', style: AppFonts.body(size: 15, weight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          key: const Key('dobButton'),
-          onPressed: _pickDob,
-          icon: const Icon(Icons.calendar_month, size: 18),
-          label: Text(dobText),
-        ),
-        if (_dobError != null)
-          Text(_dobError!, style: AppFonts.body(size: 12, color: Colors.redAccent)),
+        // 1-2. Age and sex: shown only, asked at Create Account
+        Text(fromAccount, key: const Key('fromAccount'),
+            style: AppFonts.body(size: 13, color: AppColors.hint)),
         const SizedBox(height: 18),
-        // 2. Sex
-        ChoiceQuestionField<String>(
-          key: const Key('sex'),
-          question: 'Sex',
-          initialValue: _sex,
-          options: const [('male', 'Male'), ('female', 'Female')],
-          onChanged: (v) => _sex = v,
-        ),
         // 3. Height + 5. income: two number boxes side by side
         TwoColumnGrid(children: [
           LabeledNumberBox(

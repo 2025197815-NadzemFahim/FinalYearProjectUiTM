@@ -25,7 +25,8 @@ class HistoryService {
     final next = HistoryEntry(
       title: 'Diagnosis ${entries.value.length + 1}',
       result: result,
-      explanation: PredictionService.deepExplanation(result),
+      // the API's own notes + disclaimer when there are some
+      explanation: result.explanation ?? PredictionService.deepExplanation(result),
       date: DateTime.now(),
     );
     // Make a NEW list (newest first) instead of changing the old one, so the
@@ -36,7 +37,7 @@ class HistoryService {
   static List<HistoryEntry> _sampleEntries() {
     final now = DateTime.now();
     // (days ago, disease, percent) for Diagnosis 7 down to Diagnosis 1
-    final samples = <(int, Disease, int)>[
+    final samples = <(int, Disease, double)>[
       (0, Disease.heart, 80),
       (40, Disease.diabetes, 62),
       (40, Disease.stroke, 35),

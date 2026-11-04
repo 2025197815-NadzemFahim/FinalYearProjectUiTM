@@ -14,6 +14,7 @@ from typing import Literal
 import joblib
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import db
 from backend.app.auth import optional_uid, required_uid
@@ -45,6 +46,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Chronic Disease Early Prediction API", lifespan=lifespan)
+
+# CORS: a browser only lets a web page (the Flutter app in Chrome, served from
+# e.g. http://localhost:5050) call this API (http://127.0.0.1:8000) if the API
+# allows that page's address. The Android/iOS app is not a web page and is not
+# affected. Allowed: any localhost / 127.0.0.1 port (development), plus any
+# addresses listed in CORS_ORIGINS, comma separated, for a hosted web version.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 def _model(name: str):

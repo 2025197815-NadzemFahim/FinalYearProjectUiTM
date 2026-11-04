@@ -25,6 +25,20 @@ class ProfileService {
   /// Load the signed-in user's details. Firestore version: read users/{uid}.
   Future<void> load(String uid) async {}
 
+  /// Called by Create Account: the only place date of birth, sex and contact are asked.
+  /// Firestore version: write them to users/{uid} BEFORE register() signs the
+  /// user out (the rules only let the signed-in owner write).
+  Future<void> saveAccount(
+      {required DateTime dateOfBirth, required String sex, required String contact}) async {
+    final p = details.value.profile;
+    details.value = details.value.copyWith(profile: UserProfile(
+      dateOfBirth: dateOfBirth, sex: sex, contactNumber: contact,
+      heightCm: p.heightCm, education: p.education, incomeMonthlyRm: p.incomeMonthlyRm,
+      healthCoverage: p.healthCoverage, everMarried: p.everMarried, workType: p.workType,
+      residence: p.residence,
+    ));
+  }
+
   Future<void> saveProfile(UserProfile profile) async {
     details.value = details.value.copyWith(profile: profile);
   }

@@ -11,7 +11,7 @@ class AppServices {
     PredictionService? predictions,
     HistoryService? history,
     ProfileService? profile,
-  })  : predictions = predictions ?? PredictionService(), // "??" = use this if null
+  })  : predictions = predictions ?? DemoPredictionService(), // "??" = use this if null
         history = history ?? HistoryService(),
         profile = profile ?? ProfileService();
 

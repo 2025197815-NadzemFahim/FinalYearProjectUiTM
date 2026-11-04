@@ -75,9 +75,10 @@ class FakeAuthService implements AuthService {
   Future<String?> idToken() async => _user == null ? null : 'fake-token';
 }
 
-/// [details]: the user's saved details at the start (null = a brand-new user who
-/// still has to complete them).
-Future<FakeAuthService> pumpApp(WidgetTester tester, {UserDetails? details}) async {
+/// [details]: the user's saved details at the start (null = nothing saved yet).
+/// Pass [profile] instead to inspect what the screens saved.
+Future<FakeAuthService> pumpApp(WidgetTester tester,
+    {UserDetails? details, ProfileService? profile}) async {
   // 600 x 1000 logical pixels. Wider than a phone because the test font draws
   // every letter as a full square (much wider than Poppins).
   tester.view.physicalSize = const Size(1800, 3000);
@@ -85,7 +86,8 @@ Future<FakeAuthService> pumpApp(WidgetTester tester, {UserDetails? details}) asy
   addTearDown(tester.view.reset);
 
   final auth = FakeAuthService();
-  await tester.pumpWidget(App(auth: auth, profile: ProfileService(initial: details)));
+  await tester.pumpWidget(
+      App(auth: auth, profile: profile ?? ProfileService(initial: details)));
   await tester.pumpAndSettle();
   return auth;
 }
@@ -177,7 +179,8 @@ void main() {
 
   // ---------------------------------------------------- Create account
   testWidgets('create account -> back to Login with a message', (tester) async {
-    final auth = await pumpApp(tester);
+    final profile = ProfileService();
+    final auth = await pumpApp(tester, profile: profile);
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
     expect(find.text('Create account'), findsOneWidget);
@@ -192,11 +195,19 @@ void main() {
     await tester.enterText(find.byKey(const Key('regEmail')), 'siti@demo.com');
     await tester.enterText(find.byKey(const Key('regPassword')), 'secret1');
     await tester.enterText(find.byKey(const Key('contact')), '0123456789');
-    await tester.enterText(find.byKey(const Key('age')), '30');
+    // Date of birth: tap the field -> calendar opens at 30 years ago -> OK
+    await tester.tap(find.byKey(const Key('dob')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Female'));
     await scrollAndTap(tester, find.byKey(const Key('createAccount')));
 
     expect(auth.registerCalls, 1);
+    // Date of birth, sex and contact are saved here (the only place they are asked)
+    final p = profile.details.value.profile;
+    expect((p.sex, p.contactNumber), ('female', '0123456789'));
+    expect(p.ageOn(DateTime.now()), 30); // calculated from the date of birth
     expect(find.text('Hello'), findsOneWidget); // back on Login
     expect(find.text('Account created. Please log in.'), findsOneWidget);
   });
@@ -346,9 +357,25 @@ void main() {
     expect(find.byKey(const Key('deepPercent')), findsOneWidget);
   });
 
+  testWidgets('no date of birth/sex from Create Account -> explained, not asked again',
+      (tester) async {
+    await pumpApp(tester); // nothing saved, e.g. an account made in an earlier run
+    await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
+    await tester.tap(find.byKey(const Key('predictCard')));
+    await tester.pumpAndSettle();
+    expect(find.text('Account details missing'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Using your saved details'), findsNothing); // the check didn't open
+  });
+
   testWidgets('new user: details asked once (My details -> History -> Lifestyle), then the check',
       (tester) async {
-    await pumpApp(tester); // no saved details
+    // Just registered: only the Create Account part (age, sex, contact) is saved
+    final now = DateTime.now();
+    await pumpApp(tester, details: UserDetails(profile: UserProfile(
+        dateOfBirth: DateTime(now.year - 30, now.month, now.day), sex: 'male',
+        contactNumber: '0123456789')));
     await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
     expect(find.byKey(const Key('detailsBanner')), findsOneWidget);
 
@@ -362,15 +389,11 @@ void main() {
     expect(find.text('My details'), findsOneWidget);
     await scrollAndTap(tester, find.byKey(const Key('saveMyDetails')));
     expect(find.textContaining('Some answers are missing'), findsOneWidget);
-    // Back to the very top (the date of birth is the first question)
+    // Back to the top: age and sex are shown (from Create Account), not asked
     await tester.drag(find.byType(Scrollable).first, const Offset(0, 3000));
     await tester.pumpAndSettle();
-    expect(find.text('Please choose your date of birth'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('dobButton')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('OK')); // the date picker's default date is fine
-    await tester.pumpAndSettle();
-    await answer(tester, 'sex', 'Male');
+    expect(find.text('Age 30 · Male (from your account)'), findsOneWidget);
+    expect(find.byKey(const Key('sex')), findsNothing);
     await typeNumber(tester, 'height', '170');
     await typeNumber(tester, 'income', '6500');
     await answer(tester, 'education', 'SPM (completed Form 5)');

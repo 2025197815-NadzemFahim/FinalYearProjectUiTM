@@ -121,7 +121,7 @@ class _HistoryCard extends StatelessWidget {
                     children: [
                       Text(entry.title, style: AppFonts.serif(size: 15)),
                       const Divider(height: 10, color: AppColors.divider),
-                      Text('${r.disease.label} · ${r.percent}%',
+                      Text('${r.disease.label} · ${r.percentText}%',
                           style: AppFonts.body(size: 13, color: AppColors.hint)),
                     ],
                   ),

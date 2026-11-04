@@ -17,6 +17,25 @@ Future<bool> ensureDetailsComplete(BuildContext context, AppServices services) a
   final profile = services.profile;
   if (profile.details.value.isComplete) return true;
 
+  // Age and sex are asked ONLY at Create Account (decision 2026-11-04), so the
+  // app can't ask for them here. Until profile saving is connected to Firestore
+  // (task U2) they are only kept in memory: accounts created in an earlier run of
+  // the app, or the seeded demo accounts, won't have them yet.
+  if (!profile.details.value.profile.accountComplete) {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Account details missing'),
+        content: const Text('Your age and sex are entered when you create your account, '
+            'but they could not be found for this account.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+        ],
+      ),
+    );
+    return false;
+  }
+
   final start = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -37,7 +56,7 @@ Future<bool> ensureDetailsComplete(BuildContext context, AppServices services) a
 
   // Each step opens only if that part is missing; stop if the user backs out.
   final steps = <(bool Function(), Widget Function())>[
-    (() => profile.details.value.profile.isComplete, () => MyDetailsScreen(services: services)),
+    (() => profile.details.value.profile.detailsComplete, () => MyDetailsScreen(services: services)),
     (() => profile.details.value.history.isComplete, () => MedicalHistoryScreen(services: services)),
     (() => profile.details.value.lifestyle.isComplete, () => LifestyleCheckScreen(services: services)),
   ];

@@ -30,7 +30,7 @@ enum RiskLevel {
   final Color color;
 
   /// Assumption (not in the report): below 30% low, 30-60% moderate, above 60% high.
-  static RiskLevel fromPercent(int percent) {
+  static RiskLevel fromPercent(double percent) {
     if (percent > 60) return RiskLevel.high;
     if (percent >= 30) return RiskLevel.moderate;
     return RiskLevel.low;
@@ -39,10 +39,15 @@ enum RiskLevel {
 
 /// One prediction: which disease, and how likely.
 class RiskResult {
-  const RiskResult({required this.disease, required this.percent});
+  const RiskResult({required this.disease, required this.percent, this.explanation});
 
   final Disease disease;
-  final int percent; // 0-100
+  final double percent;        // 0-100; the API gives one decimal (e.g. 70.4, 0.2)
+  final String? explanation;   // deep checks: the API's notes + disclaimer
 
   RiskLevel get level => RiskLevel.fromPercent(percent);
+
+  /// "50" for 50.0, "70.4" for 70.4: whole numbers without ".0", like the mockups.
+  String get percentText =>
+      percent == percent.roundToDouble() ? '${percent.toInt()}' : percent.toStringAsFixed(1);
 }

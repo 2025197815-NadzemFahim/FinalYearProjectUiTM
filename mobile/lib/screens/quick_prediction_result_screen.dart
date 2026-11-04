@@ -47,7 +47,7 @@ class QuickPredictionResultScreen extends StatelessWidget {
                 ExpandableCard(
                   key: Key('quickResult-${results[i].disease.name}'),
                   title: results[i].disease.label,
-                  trailingText: '${results[i].percent}%',
+                  trailingText: '${results[i].percentText}%',
                   initiallyExpanded: i == 0,
                   child: _CardBody(services: services, result: results[i]),
                 ),

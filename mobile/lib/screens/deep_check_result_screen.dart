@@ -57,7 +57,7 @@ class DeepCheckResultScreen extends StatelessWidget {
               const SizedBox(height: 12),
               // ---- the percentage
               Text(
-                '${result.percent}%',
+                '${result.percentText}%',
                 key: const Key('deepPercent'),
                 textAlign: TextAlign.center,
                 // Colour comes from the risk level: red high, orange moderate, green low.
@@ -70,7 +70,7 @@ class DeepCheckResultScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 40),
                   child: Text(
-                    explanation ?? PredictionService.deepExplanation(result),
+                    explanation ?? result.explanation ?? PredictionService.deepExplanation(result),
                     textAlign: TextAlign.center,
                     style: AppFonts.body(size: 14),
                   ),

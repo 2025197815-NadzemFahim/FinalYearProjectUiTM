@@ -9,8 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// A complete set of saved details (also used by the widget tests).
 UserDetails sampleDetails({LifestyleAnswers? lifestyle}) => UserDetails(
       profile: UserProfile(
-        dateOfBirth: DateTime(1966, 5, 20),
+        dateOfBirth: DateTime(1966, 5, 20),   // from Create Account
         sex: 'male',
+        contactNumber: '0123456789',
         heightCm: 170,
         education: Education.spm,
         incomeMonthlyRm: 6500,
@@ -63,10 +64,12 @@ void main() {
     expect(q['alcohol_drinks_per_week'], 0);            // doesn't drink
   });
 
-  test('age is recalculated on the day of the check', () {
-    final p = sampleDetails().profile;
-    expect(p.ageOn(DateTime(2026, 5, 19)), 59); // day before the birthday
-    expect(p.ageOn(DateTime(2026, 5, 20)), 60); // on the birthday
+  test('age is calculated from the date of birth on the day of the check', () {
+    final p = sampleDetails().profile;           // born 20 May 1966
+    expect(p.ageOn(DateTime(2026, 5, 19)), 59);  // day before the birthday
+    expect(p.ageOn(DateTime(2026, 5, 20)), 60);  // on the birthday
+    expect(p.ageOn(DateTime(2027, 1, 1)), 60);   // still 60 until next May
+    expect(const UserProfile(sex: 'male').ageOn(DateTime(2026)), isNull); // no date yet
   });
 
   test('smoking: the four rows map to all three models', () {
