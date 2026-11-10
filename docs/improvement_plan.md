@@ -41,7 +41,7 @@ Hours are rough estimates for working time, not compute time. Priority: **P1** =
 | I1 | `docs/input_readings.md`: every reading per layer/disease, unit, range, how obtained, shared? | Claude | 15 | 3 | final feature sets | P1 ✅ done 2026-10-28; CP5 approved 2026-10-29 |
 | **CP5** | **CHECKPOINT 5: approve inventory before any UI work** | You | 16 | - | I1 | - |
 | U0 | Connect the app to the real API (replaces dummy predictions; prerequisite for pre-fill to mean anything) | Claude structure, you finish | 17 | 4 | CP5 | P1 ✅ done 2026-11-04: `ApiPredictionService` + CORS; verified live against the running API |
-| U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 ✅ proposal in `docs/lifestyle_check_proposal.md`; CP6 approved 2026-10-29; income table filled 2026-11-11 (DOSM HIES 2022) |
+| U1 | Lifestyle quick-check: proposed questions, levels, exact model encodings, unmappable answers | Claude proposes, you set thresholds | 18 | 2 | CP5 | P1 ✅ proposal in `docs/lifestyle_check_proposal.md`; CP6 approved 2026-10-29; income table filled 2026-11-11 (DOSM HIES 2024 deciles) |
 | **CP6** | **CHECKPOINT 6: approve readings, levels, mappings** | You | 19 | - | U1 | - |
 | U2 | Profile fields at sign-up + save to Firestore (age/DOB, sex, height, stable answers) | You (Claude structure) | 20 | 6 | CP6 | P1 ✅ done 2026-11-11 (by Claude, at your request): `profile_service.dart` + `firestore_maps.dart`, rules `validUser`, 26 DB checks |
 | U3 | Lifestyle quick-check screens (retakeable) | Claude structure, you finish | 21 | 4 + 4 | CP6 | P1 ✅ structure done 2026-10-29: `lifestyle_check_screen.dart` (+ My details, Medical history screens) |
@@ -200,6 +200,6 @@ the train/test split. Record it in the data card and limitations; it is not chan
   `CORS_ORIGINS`). The heart "no stress test" path shows a message until H1's endpoint exists.
 - 2026-11-11: **U2, real History and U5 done; the Profile placeholders are built.** Saved details
   live in Firestore `users/{uid}` (date of birth instead of age); History reads the saved results;
-  the income percentile uses DOSM HIES 2022 points. Health guides (U5) with (?) help icons.
+  the income percentile uses the DOSM HIES 2024 deciles. Health guides (U5) with (?) help icons.
   My Activity, Settings and Privacy & Security replace the "not designed yet" messages; the
   profile photo shows initials. You review and adjust the UI from here.

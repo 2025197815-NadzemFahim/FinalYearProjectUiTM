@@ -1,7 +1,7 @@
 # Lifestyle Check, Profile and History: questions, levels and mappings (task U1)
 
 Created 2026-10-29. Status: **CHECKPOINT 6 approved 2026-10-29**. Income (item 6) filled 2026-11-11
-with DOSM HIES 2022 points; saving (section D) built 2026-11-11.
+with DOSM HIES 2024 deciles; saving (section D) built 2026-11-11.
 
 Rule: each answer must map **exactly** to what the model was trained on, without changing the
 reading's meaning. For each reading below:
@@ -103,7 +103,7 @@ The heavy cut-off is fixed by the data definition. The drink sizes follow the US
 | 2 | Sex | Male / Female | `sex` | exact |
 | 3 | Height | Height in cm | used for BMI | exact |
 | 4 | Education | see table E | `education_level` 1-6 | ⚠️ E1 |
-| 5 | Income | Monthly household income (RM) | `income_level` 1-8 | percentile matching with DOSM HIES 2022 points (`dosmIncomePercentiles` in `models/api_payloads.dart`); approximate below P20 |
+| 5 | Income | Monthly household income (RM) | `income_level` 1-8 | percentile matching with DOSM HIES 2024 deciles (`dosmIncomePercentiles` in `models/api_payloads.dart`); approximate below P10 (RM 2,890) |
 | 6 | Health coverage | see H1 | `has_health_coverage` | ⚠️ H1 |
 | 7 | Ever married | *Have you ever been married?* (divorced / widowed = yes) | `ever_married` | exact |
 | 8 | Work type | see W1 | `work_type` | ⚠️ W1 |
@@ -216,6 +216,13 @@ Income (item 6): the RM-to-band table uses the DOSM HIES 2022 points P20 RM 3,44
 P50 RM 6,338, P60 RM 7,694, P80 RM 11,820 and P90 RM 15,867. DOSM publishes no point below P20, so
 lower incomes are a straight line from RM 0 (approximate). To be checked against the DOSM report
 (or replaced by HIES 2024) before the final run.
+
+**Update (same day):** checked against the DOSM *Household Income Survey Report, Malaysia 2024*
+(published October 2025). The six 2022 points above are correct (the 2024 report repeats them), but
+the table now uses the 2024 decile thresholds from its Table 3: P10 RM 2,890, P20 RM 3,810,
+P30 RM 4,840, P40 RM 5,860, P50 RM 7,020, P60 RM 8,600, P70 RM 10,280, P80 RM 12,680, P90 RM 16,520.
+They are newer (median RM 7,017 vs RM 6,338) and include P10, so only incomes under RM 2,890 use the
+straight line. Typical incomes move about one band down, e.g. RM 6,500: band 7 → 6.
 
 ### Change 2026-11-04
 Profile readings 1-2 (date of birth, sex) and the contact number moved to **Create Account** (the only

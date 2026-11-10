@@ -116,13 +116,15 @@ void main() {
   test('income keeps the same position: Malaysian percentile -> BRFSS band', () {
     // (RM a month, expected band, why)
     const cases = [
-      (500.0, 1, 'about 3% of households earn this or less -> band 1 (up to 3.9%)'),
-      (3000.0, 4, 'about 17% -> band 4 (14.8-22.8%)'),
-      (5250.0, 6, 'exactly P40 -> band 6 (33.0-47.3%)'),
-      (6338.0, 7, 'the national median, P50 -> band 7 (47.3-64.4%)'),
-      (6500.0, 7, 'the sample user, about P51'),
-      (9000.0, 8, 'about P66 -> band 8 (above 64.4%)'),
-      (50000.0, 8, 'above the highest DOSM point'),
+      (500.0, 1, 'about 2% of households earn this or less -> band 1 (up to 3.9%)'),
+      (1500.0, 2, 'below P10 (straight line from RM 0), about 5% -> band 2 (3.9-8.5%)'),
+      (3000.0, 3, 'about 11% -> band 3 (8.5-14.8%)'),
+      (5860.0, 6, 'exactly P40 -> band 6 (33.0-47.3%)'),
+      (6500.0, 6, 'the sample user, about P46'),
+      (7020.0, 7, 'exactly P50, the national median -> band 7 (47.3-64.4%)'),
+      (9000.0, 7, 'about P62 -> band 7'),
+      (10280.0, 8, 'exactly P70 -> band 8 (above 64.4%)'),
+      (50000.0, 8, 'above the highest DOSM point (P90)'),
     ];
     for (final (rm, band, why) in cases) {
       expect(ApiPayloads.incomeBand(rm), band, reason: 'RM $rm: $why');

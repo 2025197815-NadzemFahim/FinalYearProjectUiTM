@@ -705,7 +705,7 @@ if (percent >= 50) return RiskLevel.high;
 | 6 | Profile photo | The name's initials in the ring; no camera badge | Needs `image_picker` + Firebase Storage (comment in `_ProfilePhoto`) |
 | 7 | Deleting an account | Not in the app; Privacy & Security says so; the rules block deletes | A delete flow: the backend removes the results and the profile, then the Auth account |
 | 8 | Risk colours and words | below 30 low, 30–60 moderate, above 60 high | Not in the report; agree on thresholds |
-| 9 | Income percentile | DOSM HIES 2022 points in `dosmIncomePercentiles` (`models/api_payloads.dart`) | Check against the HIES 2024 report |
+| 9 | Income percentile | DOSM HIES 2024 deciles (Table 3) in `dosmIncomePercentiles` (`models/api_payloads.dart`) | Replace the nine numbers when DOSM publishes a newer survey |
 | 10 | History card second line | Shows disease + % (empty in mockup) | Remove the `Text` in `_HistoryCard` if you prefer the mockup exactly |
 | 11 | Eye icon on Create Account | On Password (the mockup shows it on E-mail) | Looks like a mockup slip |
 | 12 | "120 KG" | The number is centred and "KG" sits at the right edge | Cosmetic |

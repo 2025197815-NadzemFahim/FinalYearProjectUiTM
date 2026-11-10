@@ -66,31 +66,38 @@ class ApiPayloads {
   /// data; docs/input_readings.md section 8).
   static const brfssCumulativeShare = [0.039, 0.085, 0.148, 0.228, 0.330, 0.473, 0.644, 1.0];
 
-  /// Malaysian households (DOSM Household Income Survey 2022, monthly GROSS household
-  /// income): (RM, share of households at or below it), lowest first.
+  /// Malaysian households (DOSM Household Income Survey Report 2024, Table 3, monthly
+  /// GROSS household income): (RM, share of households at or below it), lowest first.
+  /// Each point is the income where the next decile starts:
   ///
-  ///   RM  3,440  P20   median of the B40 group
-  ///   RM  5,250  P40   B40 / M40 boundary
-  ///   RM  6,338  P50   national median
-  ///   RM  7,694  P60   median of the M40 group
-  ///   RM 11,820  P80   M40 / T20 boundary
-  ///   RM 15,867  P90   median of the T20 group
+  ///   RM  2,890  P10
+  ///   RM  3,810  P20
+  ///   RM  4,840  P30
+  ///   RM  5,860  P40   D1-D4 / D5-D8 boundary (the old B40 / M40)
+  ///   RM  7,020  P50   national median (RM 7,017)
+  ///   RM  8,600  P60
+  ///   RM 10,280  P70
+  ///   RM 12,680  P80   D5-D8 / D9-D10 boundary (the old M40 / T20)
+  ///   RM 16,520  P90
   ///
-  /// DOSM publishes no point below P20, so incomes under RM 3,440 are a straight
-  /// line from RM 0 (approximate). Check these against the DOSM report before the
-  /// final run; HIES 2024 (median RM 7,017) can replace them the same way.
+  /// Below P10 the line runs straight from RM 0 (approximate). Above P90 the share is
+  /// 100%, which is band 8 anyway. When DOSM publishes a newer survey, replace the
+  /// nine numbers here; nothing else changes.
   static const dosmIncomePercentiles = <(double, double)>[
-    (3440, 0.20),
-    (5250, 0.40),
-    (6338, 0.50),
-    (7694, 0.60),
-    (11820, 0.80),
-    (15867, 0.90),
+    (2890, 0.10),
+    (3810, 0.20),
+    (4840, 0.30),
+    (5860, 0.40),
+    (7020, 0.50),
+    (8600, 0.60),
+    (10280, 0.70),
+    (12680, 0.80),
+    (16520, 0.90),
   ];
 
   /// Percentile matching: find the user's position among Malaysian households, then
   /// the BRFSS band that holds the same position.
-  ///   RM 6,500 -> 51% of Malaysian households earn this or less -> band 7 (47.3-64.4%)
+  ///   RM 6,500 -> 46% of Malaysian households earn this or less -> band 6 (33.0-47.3%)
   static int incomeBand(double monthlyRm) {
     final share = _malaysianShareAtOrBelow(monthlyRm);
     for (var band = 0; band < brfssCumulativeShare.length; band++) {
