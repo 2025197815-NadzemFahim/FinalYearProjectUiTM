@@ -113,10 +113,20 @@ void main() {
     expect(const LifestyleAnswers(drinksAlcohol: false).alcoholLevel('male'), 'None');
   });
 
-  test('income is a placeholder until the DOSM table is added', () {
-    expect(ApiPayloads.dosmIncomePercentiles, isEmpty, reason: 'remove this line once added');
-    expect(ApiPayloads.incomeBand(500), 7);     // everyone = median household for now
-    expect(ApiPayloads.incomeBand(50000), 7);
+  test('income keeps the same position: Malaysian percentile -> BRFSS band', () {
+    // (RM a month, expected band, why)
+    const cases = [
+      (500.0, 1, 'about 3% of households earn this or less -> band 1 (up to 3.9%)'),
+      (3000.0, 4, 'about 17% -> band 4 (14.8-22.8%)'),
+      (5250.0, 6, 'exactly P40 -> band 6 (33.0-47.3%)'),
+      (6338.0, 7, 'the national median, P50 -> band 7 (47.3-64.4%)'),
+      (6500.0, 7, 'the sample user, about P51'),
+      (9000.0, 8, 'about P66 -> band 8 (above 64.4%)'),
+      (50000.0, 8, 'above the highest DOSM point'),
+    ];
+    for (final (rm, band, why) in cases) {
+      expect(ApiPayloads.incomeBand(rm), band, reason: 'RM $rm: $why');
+    }
   });
 
   test('heart (full): the 10 API fields; fasting sugar becomes yes/no at > 120', () {

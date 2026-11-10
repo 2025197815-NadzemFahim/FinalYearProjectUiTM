@@ -10,24 +10,38 @@ import '../screens/lifestyle_check_screen.dart';
 import '../screens/medical_history_screen.dart';
 import '../screens/my_details_screen.dart';
 import '../services/app_services.dart';
+import '../widgets/error_dialog.dart';
 
 /// Returns true when everything is complete (now or already), false if the user
 /// stopped part-way (pressed back or "Not now").
 Future<bool> ensureDetailsComplete(BuildContext context, AppServices services) async {
   final profile = services.profile;
+
+  // Right after login the saved details may still be on their way from the
+  // database. Wait for them, so we never ask for answers the user already gave.
+  await profile.ready;
+  if (!context.mounted) return false;
+
+  // Could not read them (e.g. offline)? Don't ask everything again: say why.
+  final loadError = profile.loadError.value;
+  if (loadError != null) {
+    await showErrorDialog(context, 'Saved details not loaded', loadError);
+    return false;
+  }
+
   if (profile.details.value.isComplete) return true;
 
   // Age and sex are asked ONLY at Create Account (decision 2026-11-04), so the
-  // app can't ask for them here. Until profile saving is connected to Firestore
-  // (task U2) they are only kept in memory: accounts created in an earlier run of
-  // the app, or the seeded demo accounts, won't have them yet.
+  // app can't ask for them here. Accounts made before details were saved to the
+  // database (or by an old seed) don't have them: create a new account.
   if (!profile.details.value.profile.accountComplete) {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Account details missing'),
-        content: const Text('Your age and sex are entered when you create your account, '
-            'but they could not be found for this account.'),
+        content: const Text('Your date of birth and sex are entered when you create your '
+            'account, but they could not be found for this account. Please create a new '
+            'account to use the checks.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
         ],

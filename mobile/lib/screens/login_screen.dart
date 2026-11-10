@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/error_dialog.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/rounded_field.dart';
 import '../widgets/wave_header.dart';
@@ -204,16 +205,4 @@ class PasswordEyeButton extends StatelessWidget {
       onPressed: onPressed,
     );
   }
-}
-
-/// The error popup required by the use cases' "exception flow".
-Future<void> showErrorDialog(BuildContext context, String title, String message) {
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
-    ),
-  );
 }

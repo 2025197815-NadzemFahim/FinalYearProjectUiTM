@@ -19,7 +19,7 @@ All commands: PowerShell, from the repo root `C:\fyp\FinalYearProjectUiTM`.
 | Token checking | `backend/app/auth.py` | Verifies the app's Firebase ID token → user's uid |
 | API changes | `backend/app/main.py` | Deep checks save to history when signed in; `GET /history`, `GET /history/{id}` |
 | DB tool | `backend/db_tool.py` | Seed demo data, list users/history, get a login token, reset |
-| Tests | `backend/tests/test_db.py` | 20 checks: security rules + API + database |
+| Tests | `backend/tests/test_db.py` | 26 checks: security rules + API + database |
 
 ---
 
@@ -103,7 +103,14 @@ so the ERD is translated like this:
 
 ```
 users/{userID}                                   ← User
-   userName, userEmail, userAge, userSex, userCreate_at
+   userName, userEmail, dateOfBirth, userSex, contactNumber, userCreate_at
+   profile:   { heightCm, education, incomeMonthlyRm, healthCoverage,
+                everMarried, workType, residence }              ← My details
+   history:   { highBloodPressure, highCholesterol, cholesterolChecked5y,
+                heartDisease, difficultyWalking, updatedAt }    ← Medical history
+   lifestyle: { smoked100, smokesNow, activity, fruit, vegetables,
+                drinksAlcohol, drinksPerWeek (drinkers only), updatedAt }  ← Lifestyle check
+   lastWeightKg                                    ← fills the Weight box next time
    └── deepCheckResults/{resultID}               ← DeepCheckResult (subcollection)
           resultID, userID, diseaseType, risk_percentage,
           explanation_text, created_at, modelName
@@ -120,8 +127,17 @@ users/{userID}                                   ← User
 
 **Not stored on purpose:** Quick Prediction results (report §3.5.1 — only deep checks are kept).
 
-**Added beyond the ERD:** `modelName` — which trained model produced the risk. If you retrain,
-you can still tell which results came from which model version.
+**Added beyond the ERD:**
+- `modelName` — which trained model produced the risk. If you retrain, you can still tell which
+  results came from which model version.
+- `dateOfBirth` (a timestamp) instead of `userAge`. An age goes out of date every birthday; the
+  app and the backend work it out when needed (`UserProfile.ageOn`, `age_from_birth()` in `db.py`).
+- `contactNumber`, asked at Create Account.
+- The saved details (task U4) as three **maps** inside the user document: `profile`, `history`
+  and `lifestyle`, plus `lastWeightKg`. They are always read with the user, so embedding them
+  avoids extra reads. A choice is stored by its name, e.g. `education: "spm"`,
+  `activity: "threePlusWeekly"`. Saving one screen replaces that whole map. The field names live
+  in one file in the app, `mobile/lib/services/firestore_maps.dart`.
 
 ---
 
@@ -133,7 +149,7 @@ What the rules (`firebase/firestore.rules`) enforce for the Flutter app:
 |---|---|---|
 | Signed-in user | read/create/update **their own** profile | read anyone else's; delete profiles |
 | | read **their own** history | write any result — only the backend can, so nobody can fake a risk % |
-| Profile writes | must have age 18–120, sex male/female, a non-empty name, and the email of the signed-in account; `userCreate_at` must be the server time | change their email or creation time later |
+| Profile writes | must have a name (up to 100 characters), the email of the signed-in account, sex male/female, a date of birth that makes them 18–120, and a contact number (up to 20 characters); `userCreate_at` must be the server time. `profile`, `history`, `lifestyle` and `lastWeightKg` are optional, but when present need exactly the right fields, types and ranges (`validUser` in the rules) | change their email or creation time later; add any other field |
 | Not signed in | nothing | everything |
 
 The backend uses the Admin SDK, which bypasses the rules — that's how it saves results.
@@ -142,7 +158,7 @@ The backend uses the Admin SDK, which bypasses the rules — that's how it saves
 ```powershell
 python -m backend.tests.test_db
 ```
-Expect `20/20 checks passed`. These talk to Firestore exactly like the app does (REST + the
+Expect `26/26 checks passed`. These talk to Firestore exactly like the app does (REST + the
 user's token), so they genuinely test the rules — the Emulator UI doesn't.
 
 **After editing `firestore.rules`:** the emulator reloads the file automatically. Rerun the tests.
@@ -206,24 +222,27 @@ input fields differ:
 | DiabetesInput | hba1c_level, glucose_level, bmi, hypertension, smoking_history | age, sex, hypertension, heart_disease, smoking_history, bmi, hba1c_level, blood_glucose_level | age, sex, heart_disease added |
 | DeepCheckResult | explanation_text (String) | explanation_text (**list** of strings) | The API returns several notes |
 | DeepCheckResult | — | modelName | Added for traceability |
+| User | userAge | dateOfBirth, contactNumber, and the maps `profile`, `history`, `lifestyle` + `lastWeightKg` | Age is worked out from the date of birth; the maps hold the saved details (§4) |
 
 → Update Figure 3.14 and Tables 3.18–3.23. (Or change the schemas and retrain — but the
 diagram should follow the code, not the other way round.)
 
 ### Database improvements
-1. **Store date of birth instead of age.** `userAge` goes out of date every birthday. Store
-   `userBirthDate` (timestamp), compute age when needed. Update `validProfile()` in the rules,
-   `create_user_profile()` in `db.py`, the seed data, and the tests.
+1. ~~**Store date of birth instead of age.**~~ **Done (2026-11-11):** `dateOfBirth` is stored
+   and checked by `validDateOfBirth()` in the rules; `create_user_profile()`, the seed data and
+   the tests use it. Old demo accounts with `userAge` are rewritten by `python -m backend.db_tool seed`.
 2. **Paginate history.** `list_deep_checks()` returns up to 50. Add a `start_after` cursor
    (Firestore's `start_after(snapshot)`) so the app can load more on scroll.
 3. **Let users delete their own history.** Add `allow delete: if isOwner(userId);` under
    `deepCheckResults` in the rules, plus a test that user B *can't* delete user A's result.
 4. **Account deletion (PDPA).** Health data is sensitive personal data under Malaysia's PDPA
    2010. Add `DELETE /me` that calls `db.delete_user_data()` and `auth.delete_user()`. Good
-   point for your report's ethics/privacy section.
+   point for your report's ethics/privacy section. The app's Privacy & Security screen says
+   this is not available yet; update that text when it is.
 5. **Risk level field.** Add `riskLevel` = "low" / "moderate" / "high" from the percentage when
    saving, so the History screen can colour-code without recalculating.
-6. **Profile photo.** The Profile interface (Figure 3.23) shows a photo — add
-   `userPhotoURL` and store images in Firebase Storage (needs the Storage emulator too).
+6. **Profile photo.** The Profile interface (Figure 3.24) shows a photo; the app shows the
+   name's initials for now. Add `userPhotoURL` (and allow it in `validUser`) and store images in
+   Firebase Storage (needs the Storage emulator too).
 7. **Rules unit tests in JavaScript.** Firebase's official `@firebase/rules-unit-testing`
    library tests rules in isolation — a more standard alternative to the REST tests here.

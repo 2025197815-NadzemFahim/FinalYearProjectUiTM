@@ -40,15 +40,17 @@ abstract class AuthService {
   /// FR-02 Register (Table 3.12): create the account. Afterwards the user is
   /// signed out again, because the use case returns them to the Login screen.
   ///
-  /// [onCreated] runs with the new account's uid while it is STILL signed in,
-  /// just before that sign-out. It is the only moment the app may write the
-  /// new user's profile (the Firestore rules only let the signed-in owner write).
+  /// [onCreated] runs with the new account while it is STILL signed in, just
+  /// before that sign-out. It is the only moment the app may write the new
+  /// user's profile (the Firestore rules only let the signed-in owner write).
+  /// If it fails, the account is removed again and [AuthFailure] is thrown, so
+  /// there is never an account without its date of birth and sex.
   Future<void> register({
     required String firstName,
     required String lastName,
     required String email,
     required String password,
-    Future<void> Function(String uid)? onCreated,
+    Future<void> Function(AppUser user)? onCreated,
   });
 
   /// Forgot Password (Figure 3.17): email the user a reset link.
@@ -92,17 +94,27 @@ class FirebaseAuthService implements AuthService {
     required String lastName,
     required String email,
     required String password,
-    Future<void> Function(String uid)? onCreated,
+    Future<void> Function(AppUser user)? onCreated,
   }) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
           email: email.trim(), password: password);
+      final user = cred.user!; // always set after a successful create
+      final fullName = '${firstName.trim()} ${lastName.trim()}';
+
       try {
-        await cred.user?.updateDisplayName('${firstName.trim()} ${lastName.trim()}');
+        await user.updateDisplayName(fullName);
+
         // Date of birth, sex and contact are saved here (Create Account passes
         // ProfileService.saveAccount), while the new user is still signed in.
-        final uid = cred.user?.uid;
-        if (uid != null) await onCreated?.call(uid);
+        try {
+          await onCreated?.call(AppUser(uid: user.uid, email: user.email, displayName: fullName));
+        } catch (e) {
+          // Undo: an account without its details could never start a check.
+          await user.delete();
+          throw AuthFailure('Your details could not be saved, so the account was not '
+              'created.\n\n$e');
+        }
       } finally {
         // "finally" = even if saving the details failed, never leave the new
         // user signed in. Table 3.12: "redirects the user to the Login Interface"

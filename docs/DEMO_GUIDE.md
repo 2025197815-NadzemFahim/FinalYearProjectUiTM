@@ -3,10 +3,11 @@
 Shows the three parts: **AI model**, **Firebase** (database + login) and **UI** (Flutter app).
 Start everything **15 minutes before** the presentation, in this order. You need 3 PowerShell windows.
 
-> **The app now uses the real AI** (Window 2 must be running). Two things are still kept only in
-> the app's memory until Firestore saving is done (task U2): your saved details and History.
-> So, for the app part, **create a new account in the app first** (step 4): the seeded demo
-> accounts have no date of birth/sex in the app yet and would show "Account details missing".
+> **The app uses the real AI** (Window 2 must be running) and **saves to Firestore**: your
+> details and every deep-check result stay in the emulator database, so a demo account keeps
+> its History between runs. Before the presentation, run `python -m backend.db_tool seed` once
+> (Window 2, after `venv\Scripts\activate`): it adds the demo accounts and rewrites any old
+> ones that still have an age instead of a date of birth.
 
 ---
 
@@ -34,8 +35,9 @@ Wait for "Loaded models: [...]" (Model 1 is 600 MB, so this takes about a minute
 cd C:\fyp\FinalYearProjectUiTM\mobile
 flutter run -d chrome
 ```
-The seeded demo accounts (`backend/db_tool.py`) are for steps 2-3 (the API page). For the app,
-create an account in step 4.
+Log in to the app with a seeded demo account (emails and password in `backend/db_tool.py`,
+`DEMO_USERS` / `DEMO_PASSWORD`). Ali already has complete details and two saved results.
+Create a new account in step 4 to show the "Complete your details" flow.
 
 ---
 
@@ -125,19 +127,23 @@ Window 3 (Chrome). Press **F12** → phone icon to show it at phone size.
    → **Check** → **real** percentages from the AI → **Deep Check** (heart asks about a stress test
    first) → result with the model's own notes. *"Every check reuses the saved details, so the
    Quick check asks 5 readings instead of 20."*
-4. **History** (grouped by date) → the new result is at the top.
-5. **Profile** → My details / Medical history / Lifestyle check → **Log out**.
+4. **History** (grouped by date) → the new result is at the top. Log out and back in: it is
+   still there (saved in Firestore). Show it in the Emulator UI too (`users/{uid}/deepCheckResults`).
+5. **Help**: on a Deep-Check form, tap the **(?)** after a reading → its Health guide. Tap a
+   banner on Main → another guide.
+6. **Profile** → **My Activity** (latest result per disease) → **Privacy & Security** (what is
+   saved) → **Log out**.
 
-Say: *"All 10 interfaces from Section 3.5.4 are built, plus the details screens, and the app is
-connected to the AI: 32 automated tests."*
+Say: *"All 10 interfaces from Section 3.5.4 are built, plus the details screens, Health guides,
+My Activity, Settings and Privacy. The app is connected to the AI and to Firestore: 56
+automated app tests and 26 database checks."*
 
 ### 5. What's next (1 min)
 From `docs/improvement_plan.md`:
-- connect the app to the AI;
-- lifestyle quick check + profile pre-fill (Quick Prediction drops from 20 inputs to 5);
-- a reduced heart model for users without a stress test;
-- tutorials on taking readings;
-- hyperparameter tuning with a model registry.
+- a reduced heart model for users without a stress test (the app's "No" path is ready);
+- videos for the Health guides;
+- hyperparameter tuning with a model registry;
+- running the app on an Android phone.
 
 ---
 

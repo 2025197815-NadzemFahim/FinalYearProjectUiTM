@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'help_button.dart';
 
 class LabeledDropdown extends StatelessWidget {
   const LabeledDropdown({
@@ -12,20 +13,31 @@ class LabeledDropdown extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.onHelp,
   });
 
   final String label;
   final String value;
   final List<String> options;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onHelp; // set -> a (?) after the label opens a guide
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start, // left-align label and box
       children: [
-        Text(label, style: AppFonts.serif(size: 15)),
-        const SizedBox(height: 8),
+        // Fixed height, so the box sits at the same place with or without the (?).
+        SizedBox(
+          height: 26,
+          child: Row(
+            children: [
+              Flexible(child: Text(label, style: AppFonts.serif(size: 15))),
+              if (onHelp != null) HelpButton(onTap: onHelp!),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),

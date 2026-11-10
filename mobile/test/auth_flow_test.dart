@@ -10,6 +10,7 @@ import 'package:chronic_disease_app/models/user_details.dart';
 import 'package:chronic_disease_app/navigation/app_tabs.dart';
 import 'package:chronic_disease_app/services/auth_service.dart';
 import 'package:chronic_disease_app/services/profile_service.dart';
+import 'package:chronic_disease_app/services/tutorial_service.dart';
 import 'package:chronic_disease_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,13 +61,15 @@ class FakeAuthService implements AuthService {
     required String lastName,
     required String email,
     required String password,
-    Future<void> Function(String uid)? onCreated,
+    Future<void> Function(AppUser user)? onCreated,
   }) async {
     registerCalls++;
     if (_accounts.containsKey(email.trim())) {
       throw const AuthFailure('An account already exists for that email.');
     }
-    await onCreated?.call('new-${email.trim()}'); // the new account's uid
+    final user = AppUser(
+        uid: 'new-${email.trim()}', email: email.trim(), displayName: '$firstName $lastName');
+    await onCreated?.call(user);
     // Like the real service: the user is NOT left signed in.
   }
 
@@ -85,9 +88,10 @@ class FakeAuthService implements AuthService {
 }
 
 /// [details]: Ali's (u1's) saved details at the start (null = nothing saved yet).
-/// Pass [profile] instead to inspect what the screens saved.
+/// Pass [profile] instead to inspect what the screens saved, and [tutorials]
+/// to give the Health guides a different file reader.
 Future<FakeAuthService> pumpApp(WidgetTester tester,
-    {UserDetails? details, ProfileService? profile}) async {
+    {UserDetails? details, ProfileService? profile, TutorialService? tutorials}) async {
   // 600 x 1000 logical pixels. Wider than a phone because the test font draws
   // every letter as a full square (much wider than Poppins).
   tester.view.physicalSize = const Size(1800, 3000);
@@ -95,8 +99,11 @@ Future<FakeAuthService> pumpApp(WidgetTester tester,
   addTearDown(tester.view.reset);
 
   final auth = FakeAuthService();
-  await tester.pumpWidget(
-      App(auth: auth, profile: profile ?? ProfileService(initial: details, ownerUid: 'u1')));
+  await tester.pumpWidget(App(
+    auth: auth,
+    profile: profile ?? ProfileService(initial: details, ownerUid: 'u1'),
+    tutorials: tutorials,
+  ));
   await tester.pumpAndSettle();
   return auth;
 }
@@ -250,16 +257,14 @@ void main() {
     expect(find.text(FakeAuthService.validEmail), findsOneWidget);
 
     // Cancel keeps you signed in
-    await tester.tap(find.byKey(const Key('logout')));
-    await tester.pumpAndSettle();
+    await scrollAndTap(tester, find.byKey(const Key('logout'))); // below the menus
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(auth.signOutCalls, 0);
     expect(find.text('Ali Ahmad'), findsOneWidget);
 
     // Confirm signs out and returns to Login
-    await tester.tap(find.byKey(const Key('logout')));
-    await tester.pumpAndSettle();
+    await scrollAndTap(tester, find.byKey(const Key('logout'))); // below the menus
     await tester.tap(find.byKey(const Key('confirm-logout')));
     await tester.pumpAndSettle();
     expect(auth.signOutCalls, 1);
@@ -272,8 +277,7 @@ void main() {
     Future<void> logout() async {
       await tester.tap(find.text('Profile'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('logout')));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.byKey(const Key('logout')));
       await tester.tap(find.byKey(const Key('confirm-logout')));
       await tester.pumpAndSettle();
     }

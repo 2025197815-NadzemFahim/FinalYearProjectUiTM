@@ -4,7 +4,8 @@ Every read/write the backend does to Firestore goes through this file, so the
 data layout lives in one place. Layout (documented in docs/DATABASE.md):
 
     users/{userID}                               ERD: User
-        userName, userEmail, userAge, userSex, userCreate_at
+        userName, userEmail, userSex, userCreate_at, dateOfBirth, contactNumber
+        profile {..}, history {..}, lifestyle {..}, lastWeightKg   (saved by the app)
     users/{userID}/deepCheckResults/{resultID}   ERD: DeepCheckResult
         resultID, userID, diseaseType, risk_percentage, explanation_text,
         created_at, modelName,
@@ -19,6 +20,7 @@ Connection is chosen by environment variables:
 import os
 import sys
 import uuid
+from datetime import date, datetime, timedelta, timezone
 
 import firebase_admin
 import google.auth.credentials
@@ -70,14 +72,32 @@ def _require():
 
 
 # ---------------------------------------------------------------- User
-def create_user_profile(uid, user_name, user_email, user_age, user_sex) -> dict:
-    """Create users/{uid}. Normally the Flutter app does this itself right after
-    Firebase Auth registration (allowed by the security rules); this admin
-    version is for seeding, tests and tools."""
-    doc = {"userName": user_name, "userEmail": user_email, "userAge": int(user_age),
-           "userSex": user_sex, "userCreate_at": firestore.SERVER_TIMESTAMP}
+MALAYSIA = timezone(timedelta(hours=8))
+
+
+def create_user_profile(uid, user_name, user_email, date_of_birth: date, user_sex,
+                        contact_number, details: dict | None = None) -> dict:
+    """Create users/{uid}. Normally the Flutter app does this itself at Create
+    Account (allowed by the security rules); this admin version is for seeding,
+    tests and tools.
+
+    The date of birth is stored as midnight Malaysian time, the same as the app
+    writes it from a phone in Malaysia. `details` optionally adds the answer maps
+    (profile / history / lifestyle / lastWeightKg) in the app's layout
+    (mobile/lib/services/firestore_maps.dart)."""
+    dob = datetime(date_of_birth.year, date_of_birth.month, date_of_birth.day, tzinfo=MALAYSIA)
+    doc = {"userName": user_name, "userEmail": user_email, "userSex": user_sex,
+           "dateOfBirth": dob, "contactNumber": contact_number,
+           "userCreate_at": firestore.SERVER_TIMESTAMP, **(details or {})}
     _require().collection(USERS).document(uid).set(doc)
     return get_user(uid)
+
+
+def age_from_birth(dob: datetime, today: date | None = None) -> int:
+    """Whole years: one less if this year's birthday hasn't come yet (same as the app)."""
+    born = dob.astimezone(MALAYSIA).date()
+    today = today or datetime.now(MALAYSIA).date()
+    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
 
 def get_user(uid) -> dict | None:

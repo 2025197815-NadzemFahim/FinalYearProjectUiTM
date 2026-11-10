@@ -61,18 +61,36 @@ class ApiPayloads {
   static String diabetesSmoking(LifestyleAnswers l) =>
       l.smokesNow! ? 'current' : (l.smoked100! ? 'former' : 'never');
 
-  // ------------------------------------------------------------ income (PENDING)
+  // -------------------------------------------------------------------- income
   /// Share of BRFSS households at or below each income band 1..8 (from the training
   /// data; docs/input_readings.md section 8).
   static const brfssCumulativeShare = [0.039, 0.085, 0.148, 0.228, 0.330, 0.473, 0.644, 1.0];
 
-  /// PLACEHOLDER until you add the DOSM HIES 2022 table (CHECKPOINT 6, item 6).
-  /// Fill with (monthly household income in RM, share of Malaysian households at or
-  /// below it), lowest first, e.g. the decile boundaries from DOSM.
-  static const dosmIncomePercentiles = <(double, double)>[];
+  /// Malaysian households (DOSM Household Income Survey 2022, monthly GROSS household
+  /// income): (RM, share of households at or below it), lowest first.
+  ///
+  ///   RM  3,440  P20   median of the B40 group
+  ///   RM  5,250  P40   B40 / M40 boundary
+  ///   RM  6,338  P50   national median
+  ///   RM  7,694  P60   median of the M40 group
+  ///   RM 11,820  P80   M40 / T20 boundary
+  ///   RM 15,867  P90   median of the T20 group
+  ///
+  /// DOSM publishes no point below P20, so incomes under RM 3,440 are a straight
+  /// line from RM 0 (approximate). Check these against the DOSM report before the
+  /// final run; HIES 2024 (median RM 7,017) can replace them the same way.
+  static const dosmIncomePercentiles = <(double, double)>[
+    (3440, 0.20),
+    (5250, 0.40),
+    (6338, 0.50),
+    (7694, 0.60),
+    (11820, 0.80),
+    (15867, 0.90),
+  ];
 
   /// Percentile matching: find the user's position among Malaysian households, then
   /// the BRFSS band that holds the same position.
+  ///   RM 6,500 -> 51% of Malaysian households earn this or less -> band 7 (47.3-64.4%)
   static int incomeBand(double monthlyRm) {
     final share = _malaysianShareAtOrBelow(monthlyRm);
     for (var band = 0; band < brfssCumulativeShare.length; band++) {
@@ -82,9 +100,6 @@ class ApiPayloads {
   }
 
   static double _malaysianShareAtOrBelow(double rm) {
-    // Without the DOSM table everyone is treated as the median household (share 0.5,
-    // which falls in band 7). This keeps the app working; it is NOT the user's real band.
-    if (dosmIncomePercentiles.isEmpty) return 0.5;
     var (prevRm, prevShare) = (0.0, 0.0);
     for (final (limitRm, share) in dosmIncomePercentiles) {
       if (rm <= limitRm) {

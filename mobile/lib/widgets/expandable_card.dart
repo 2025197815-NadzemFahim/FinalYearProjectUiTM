@@ -58,20 +58,22 @@ class _ExpandableCardState extends State<ExpandableCard> {
               padding: const EdgeInsets.fromLTRB(24, 18, 16, 14), // space inside: left, top, right, bottom
               child: Row(
                 children: [
-                  // Flexible: on a narrow screen the texts shrink with "..." instead
-                  // of overflowing the card (the yellow-black stripes).
-                  Flexible(
-                    child: Text(widget.title, style: AppFonts.serif(size: 15),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-                  if (widget.trailingText != null) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(widget.trailingText!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: AppFonts.body(size: 15, color: AppColors.hint)),
+                  // Expanded: the texts take all the space left of the arrow.
+                  // Wrap: if the title and the grey text don't fit on one line
+                  // (a narrow phone), the grey text moves under the title instead
+                  // of cutting either of them off.
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8, // gap between the title and the grey text
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(widget.title, style: AppFonts.serif(size: 15)),
+                        if (widget.trailingText != null)
+                          Text(widget.trailingText!,
+                              style: AppFonts.body(size: 15, color: AppColors.hint)),
+                      ],
                     ),
-                  ],
-                  const Spacer(),
+                  ),
                   // Arrow points down when open, right when closed (as in the mockup).
                   Icon(_expanded ? Icons.keyboard_arrow_down : Icons.chevron_right, size: 28),
                 ],

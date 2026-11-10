@@ -54,9 +54,13 @@ class _LifestyleCheckScreenState extends State<LifestyleCheckScreen> {
       drinksPerWeek: _drinks == true ? int.parse(_perWeek.text) : null,
       updatedAt: DateTime.now(),
     );
-    await widget.services.profile.saveLifestyle(answers);
+    final saved = await DetailsPage.trySave(
+        context, () => widget.services.profile.saveLifestyle(answers));
+
     if (!mounted) return;
-    setState(() => _saving = false); // stop the spinner before the dialog covers it
+    setState(() => _saving = false); // stop the spinner before a dialog covers it
+    if (!saved) return; // stay here; the error was shown
+
     await _showLevels(answers);
     if (mounted) Navigator.of(context).pop(true);
   }

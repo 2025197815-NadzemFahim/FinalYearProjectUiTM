@@ -46,11 +46,16 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   `docs/MOBILE_GUIDE.md` = running + connecting real data. lib/: `models/` (data), `screens/` (one per
   mockup; `auth_gate.dart` Login vs `home_shell.dart` tabs), `widgets/` (shared UI), `services/`
   (auth = Firebase; prediction = REAL API via `ApiPredictionService` (`DemoPredictionService` in
-  tests / `--dart-define=USE_DEMO_PREDICTIONS=true`); history + profile = in-memory until U2, and
-  `AppServices.startSession(uid)` (HomeShell, every login) drops the previous user's data when a
-  different person logs in),
+  tests / `--dart-define=USE_DEMO_PREDICTIONS=true`); profile = Firestore `users/{uid}`
+  (`profile_service.dart` + `firestore_maps.dart`), history = reads `deepCheckResults`; both are
+  in-memory when built without a db (tests), and `AppServices.startSession(uid)` (HomeShell, every
+  login) drops the previous user's data when a different person logs in; tutorials = Health guides
+  from `assets/tutorials.json`),
   `config/api_config.dart` = API address per device, `models/api_payloads.dart` = answers -> exact API request bodies,
-  `theme/app_theme.dart` (AppColors, AppFonts), `navigation/app_tabs.dart`, `config/firebase_config.dart`
+  `theme/app_theme.dart` (AppColors, AppFonts), `navigation/app_tabs.dart`, `navigation/guides.dart`
+  (`openGuide`, used by the (?) icons and banners), `config/firebase_config.dart` (emulator ports via
+  `--dart-define=AUTH_EMULATOR_PORT/FIRESTORE_EMULATOR_PORT`). Profile pages with no mockup (My Activity,
+  Settings, Privacy & Security) share `widgets/info_page.dart`
 - Root .gitignore is the Python template (ignores every `lib/`); `!mobile/lib/` re-includes Flutter code
 - `data/raw/brfss/`, `data/raw/layer2/` original datasets, never edit by hand (gitignored)
 - `data/processed/` cleaned data written by notebooks (gitignored)
@@ -67,10 +72,13 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Backend on emulators: set `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"` and
   `$env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` before `uvicorn`; without them the DB is disabled
   and deep checks are just not saved
-- Flutter (in `mobile/`): `flutter run -d chrome` (emulators + `uvicorn` running), `flutter test` (37 tests:
-  11 payload mapping + 7 prediction service + 4 session (shared-device privacy) + 15 widget, no emulator or API needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
+- Flutter (in `mobile/`): `flutter run -d chrome` (emulators + `uvicorn` running), `flutter test` (56 tests:
+  11 payload mapping + 7 prediction service + 4 session (shared-device privacy) + 7 Firestore maps +
+  15 auth/flow widget + 12 guides/profile, no emulator or API needed), `flutter analyze`. Android
+  emulator reaches the PC at 10.0.2.2 (handled in config). Don't run `dart format` over the whole tree:
+  it collapses the hand-aligned end-of-line comments
 - DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
-- DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
+- DB tests (emulators running): `python -m backend.tests.test_db` (26 checks: rules + API + DB)
 - Evaluation of saved models (no retraining): `python -m ml.ci --layer1 --layer2 all` (bootstrap 95%
   CIs), `python -m ml.calibration --layer1 --layer2 all` (is the risk % honest: Brier, ECE, reliability
   plots in `ml/reports/figures/`), `python -m ml.repeated_cv --layer2 heart stroke` (5x5 repeated CV +
@@ -96,10 +104,14 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 
 ## Not done yet
 - Full training run (only `--sample 900` dev models exist so far)
-- `flutterfire configure` not run (app uses demo FirebaseOptions + Auth emulator); Firestore not yet
-  used in the app. The app calls the real API; history and saved details are in-memory
-  (U2 / task 3). Date of birth, sex, contact are asked ONLY at Create Account. google_fonts 9
-  uses the separate `material_ui` package, so don't pass its `*TextTheme()` into ThemeData
+- `flutterfire configure` not run (app uses demo FirebaseOptions + the Auth and Firestore emulators).
+  Date of birth, sex, contact are asked ONLY at Create Account (written to `users/{uid}` in the same
+  step; if that write fails the new Auth account is deleted). google_fonts 9 uses the separate
+  `material_ui` package, so don't pass its `*TextTheme()` into ThemeData
+- Web release builds: reloading while signed in signs the user out (FlutterFire restores the user
+  before the Auth emulator is applied); `flutter run` debug builds are not affected
+- Health guide videos (`video.url` is null for all guides: "Video coming soon"), profile photo
+  (initials only; needs image_picker + Firebase Storage), in-app account deletion
 - Firebase project not created in the console (database runs on the emulator; go-live steps in
   `docs/DATABASE.md` §7)
 - ERD / data dictionary (Fig 3.14, Tables 3.18-3.23) don't match the stored input fields; see

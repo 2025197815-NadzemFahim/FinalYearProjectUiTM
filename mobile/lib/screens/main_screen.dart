@@ -8,17 +8,18 @@
 //
 // Banner content is SAMPLE data: the mockup uses third-party poster images,
 // so each banner is rebuilt from colours, an icon and the mockup's text.
-// To use a real image instead, see _Banner below.
+// To use a real image instead, see _Banner below. Tapping a banner or an info
+// card opens the matching Health guide (navigation/guides.dart).
 // =============================================================================
 import 'package:flutter/material.dart';
 
 import '../models/user_details.dart';
 import '../navigation/app_tabs.dart';
 import '../navigation/details_flow.dart';
+import '../navigation/guides.dart';
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/coming_soon.dart';
 import 'lifestyle_check_screen.dart';
 import 'quick_prediction_input_screen.dart';
 
@@ -81,58 +82,114 @@ class MainScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const _BannerCarousel(),
+        _BannerCarousel(services: services),
         const SizedBox(height: 24),
-        const _InfoCardRow(),
+        _InfoCardRow(services: services),
         const SizedBox(height: 24),
       ],
     );
   }
 }
 
-/// Below the header: "Complete your details" until they are done, then a reminder
-/// when the lifestyle answers are older than 90 days. Nothing otherwise.
+/// Below the header, at most one of these (checked in this order):
+///   - the saved details could not be loaded  -> "Try again"
+///   - they are still loading                 -> a small spinner
+///   - they are not complete yet              -> "Complete your details"
+///   - the lifestyle answers are 90+ days old -> "Time to retake..."
+/// Nothing otherwise.
 class _DetailsBanner extends StatelessWidget {
   const _DetailsBanner({required this.services});
   final AppServices services;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<UserDetails>(
-      valueListenable: services.profile.details,
-      builder: (context, d, _) {
-        final (String, VoidCallback)? banner = !d.isComplete
-            ? ('Complete your details (2 min) so each check asks less.',
-                () => ensureDetailsComplete(context, services))
-            : d.lifestyle.needsRetake(DateTime.now())
-                ? ('Time to retake your lifestyle check.',
-                    () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => LifestyleCheckScreen(services: services))))
-                : null;
-        if (banner == null) return const SizedBox.shrink();
-        final (text, onTap) = banner;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
-          child: Material(
+    final profile = services.profile;
+
+    // ListenableBuilder + Listenable.merge: redraw when ANY of the three changes.
+    return ListenableBuilder(
+      listenable: Listenable.merge([profile.details, profile.loading, profile.loadError]),
+      builder: (context, _) {
+        final UserDetails d = profile.details.value;
+
+        if (profile.loadError.value != null) {
+          return _BannerRow(
+            key: const Key('loadErrorBanner'),
+            color: const Color(0xFFFDECEA), // light red
+            icon: const Icon(Icons.cloud_off, color: AppColors.riskHigh),
+            text: 'Your saved details could not be loaded. Tap to try again.',
+            onTap: profile.reload,
+          );
+        }
+        if (profile.loading.value) {
+          return const _BannerRow(
             color: AppColors.mintCard,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              key: const Key('detailsBanner'),
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(children: [
-                  const Icon(Icons.assignment_ind_outlined, color: AppColors.green),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(text, style: AppFonts.body(size: 14))),
-                  const Icon(Icons.chevron_right),
-                ]),
-              ),
+            icon: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            text: 'Loading your saved details...',
+          );
+        }
+        if (!d.isComplete) {
+          return _BannerRow(
+            key: const Key('detailsBanner'),
+            color: AppColors.mintCard,
+            icon: const Icon(Icons.assignment_ind_outlined, color: AppColors.green),
+            text: 'Complete your details (2 min) so each check asks less.',
+            onTap: () => ensureDetailsComplete(context, services),
+          );
+        }
+        if (d.lifestyle.needsRetake(DateTime.now())) {
+          return _BannerRow(
+            key: const Key('detailsBanner'),
+            color: AppColors.mintCard,
+            icon: const Icon(Icons.assignment_ind_outlined, color: AppColors.green),
+            text: 'Time to retake your lifestyle check.',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => LifestyleCheckScreen(services: services))),
+          );
+        }
+        return const SizedBox.shrink(); // = draw nothing
+      },
+    );
+  }
+}
+
+/// One rounded banner: icon, text, and a chevron when it can be tapped.
+class _BannerRow extends StatelessWidget {
+  const _BannerRow({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.text,
+    this.onTap,
+  });
+
+  final Color color;
+  final Widget icon;
+  final String text;
+  final VoidCallback? onTap; // null = not tappable (e.g. while loading)
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(child: Text(text, style: AppFonts.body(size: 14))),
+                if (onTap != null) const Icon(Icons.chevron_right),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -221,32 +278,55 @@ class _ActionCard extends StatelessWidget {
 
 /// Sample banner data. Add, remove or reorder entries to change the carousel.
 const _banners = [
-  (
-    'February is',
-    'NATIONAL HEART MONTH',
-    'Take care of your heart: eat healthy, stay active, get regular checkups!',
-    [Color(0xFFFF8A65), Color(0xFFE53935)],
-    Icons.favorite,
+  _BannerData(
+    small: 'February is',
+    big: 'NATIONAL HEART MONTH',
+    caption: 'Take care of your heart: eat healthy, stay active, get regular checkups!',
+    colors: [Color(0xFFFF8A65), Color(0xFFE53935)],
+    icon: Icons.favorite,
+    guide: Guides.healthyHabits,
   ),
-  (
-    'November 14',
-    'WORLD DIABETES DAY',
-    'Know your blood sugar. Early checks prevent complications.',
-    [Color(0xFF64B5F6), Color(0xFF1E5BD8)],
-    Icons.bloodtype,
+  _BannerData(
+    small: 'November 14',
+    big: 'WORLD DIABETES DAY',
+    caption: 'Know your blood sugar. Early checks prevent complications.',
+    colors: [Color(0xFF64B5F6), Color(0xFF1E5BD8)],
+    icon: Icons.bloodtype,
+    guide: Guides.bloodSugar,
   ),
-  (
-    'October 29',
-    'WORLD STROKE DAY',
-    'Act F.A.S.T. - Face, Arms, Speech, Time to call for help.',
-    [Color(0xFFBA68C8), Color(0xFF6A1B9A)],
-    Icons.psychology,
+  _BannerData(
+    small: 'October 29',
+    big: 'WORLD STROKE DAY',
+    caption: 'Act F.A.S.T. - Face, Arms, Speech, Time to call for help.',
+    colors: [Color(0xFFBA68C8), Color(0xFF6A1B9A)],
+    icon: Icons.psychology,
+    guide: Guides.strokeFast,
   ),
 ];
 
+/// What one banner shows, and which Health guide opens when it is tapped.
+class _BannerData {
+  const _BannerData({
+    required this.small,
+    required this.big,
+    required this.caption,
+    required this.colors,
+    required this.icon,
+    required this.guide,
+  });
+
+  final String small;        // "February is"
+  final String big;          // "NATIONAL HEART MONTH"
+  final String caption;      // the line under the title
+  final List<Color> colors;  // gradient, left to right
+  final IconData icon;
+  final String guide;        // a guide id from Guides
+}
+
 /// Swipeable banners + page dots. StatefulWidget: it remembers which page is showing.
 class _BannerCarousel extends StatefulWidget {
-  const _BannerCarousel();
+  const _BannerCarousel({required this.services});
+  final AppServices services;
 
   @override
   State<_BannerCarousel> createState() => _BannerCarouselState();
@@ -275,7 +355,12 @@ class _BannerCarouselState extends State<_BannerCarousel> {
         // itemBuilder makes one page at a time, by index.
         itemBuilder: (context, i) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: _Banner(index: i, currentPage: _page),
+          child: _Banner(
+            key: Key('banner-${_banners[i].guide}'),
+            data: _banners[i],
+            currentPage: _page,
+            onTap: () => openGuide(context, widget.services, _banners[i].guide),
+          ),
         ),
       ),
     );
@@ -283,38 +368,39 @@ class _BannerCarouselState extends State<_BannerCarousel> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.index, required this.currentPage});
-  final int index;
+  const _Banner({super.key, required this.data, required this.currentPage, required this.onTap});
+
+  final _BannerData data;
   final int currentPage;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final (small, big, caption, colors, icon) = _banners[index];
     return GestureDetector(
-      onTap: () => showComingSoon(context, 'Health articles'),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           // A gradient blends between colours. To use a picture instead:
           //   image: DecorationImage(image: AssetImage('assets/heart.png'), fit: BoxFit.cover),
-          gradient: LinearGradient(colors: colors),
+          gradient: LinearGradient(colors: data.colors),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 64),
+            Icon(data.icon, color: Colors.white.withValues(alpha: 0.9), size: 64),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(small, style: AppFonts.body(size: 13, color: Colors.white)),
-                  Text(big,
+                  Text(data.small, style: AppFonts.body(size: 13, color: Colors.white)),
+                  Text(data.big,
                       textAlign: TextAlign.right,
                       style: AppFonts.body(size: 22, weight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 6),
-                  Text(caption,
+                  Text(data.caption,
                       textAlign: TextAlign.right,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -350,11 +436,13 @@ class _Banner extends StatelessWidget {
 
 /// The blue/red "Prevent the spread..." cards that scroll sideways.
 class _InfoCardRow extends StatelessWidget {
-  const _InfoCardRow();
+  const _InfoCardRow({required this.services});
+  final AppServices services;
 
+  /// (title, colour, the Health guide it opens)
   static const _cards = [
-    ('Prevent the spread\nof COVID-19 Virus', Color(0xFF2F5BE0)),
-    ('Know your numbers:\ncheck your blood pressure', Color(0xFFEF4B3F)),
+    ('Prevent the spread\nof COVID-19 Virus', Color(0xFF2F5BE0), Guides.infections),
+    ('Know your numbers:\ncheck your blood pressure', Color(0xFFEF4B3F), Guides.bloodPressure),
   ];
 
   @override
@@ -367,9 +455,10 @@ class _InfoCardRow extends StatelessWidget {
         itemCount: _cards.length,
         separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, i) {
-          final (title, color) = _cards[i];
+          final (title, color, guide) = _cards[i];
           return GestureDetector(
-            onTap: () => showComingSoon(context, 'Health articles'),
+            key: Key('card-$guide'),
+            onTap: () => openGuide(context, services, guide),
             child: Container(
               width: 315,
               // clipBehavior cuts off the part of the circle that sticks out

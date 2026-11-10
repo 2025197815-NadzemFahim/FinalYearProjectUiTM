@@ -7,6 +7,7 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  cloud_firestore: ^6.10.2
   firebase_auth: ^6.7.0
   firebase_core: ^4.15.0
   flutter:
@@ -21,3 +22,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Files bundled inside the app (work offline). Health guides: task U5.
+  assets:
+    - assets/tutorials.json

@@ -11,6 +11,7 @@ Checks two things:
 """
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8080")
 os.environ.setdefault("FIREBASE_AUTH_EMULATOR_HOST", "127.0.0.1:9099")
@@ -44,18 +45,58 @@ def new_user():
     return uid, email, r.json()["idToken"]
 
 
-def rest_create_profile(uid, token, email, age, sex="male"):
-    """Create users/{uid} the way the Flutter app would (server timestamp included)."""
+def fs_value(v):
+    """Python value -> the typed value Firestore's REST API expects (what the app's SDK sends)."""
+    if isinstance(v, bool):
+        return {"booleanValue": v}
+    if isinstance(v, int):
+        return {"integerValue": str(v)}
+    if isinstance(v, float):
+        return {"doubleValue": v}
+    if isinstance(v, str):
+        return {"stringValue": v}
+    if isinstance(v, datetime):
+        return {"timestampValue": v.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    if isinstance(v, dict):
+        return {"mapValue": {"fields": {k: fs_value(x) for k, x in v.items()}}}
+    raise TypeError(f"no Firestore type for {v!r}")
+
+
+def _commit(uid, token, fields, *, create):
+    """One write to users/{uid} with the user's token, so the security rules apply."""
     name = f"projects/{db.PROJECT_ID}/databases/(default)/documents/users/{uid}"
-    write = {
-        "update": {"name": name, "fields": {
-            "userName": {"stringValue": "Test User"}, "userEmail": {"stringValue": email},
-            "userAge": {"integerValue": str(age)}, "userSex": {"stringValue": sex}}},
-        "updateTransforms": [{"fieldPath": "userCreate_at", "setToServerValue": "REQUEST_TIME"}],
-        "currentDocument": {"exists": False},
-    }
+    write = {"update": {"name": name, "fields": {k: fs_value(v) for k, v in fields.items()}}}
+    if create:   # like Create Account: new document + the server's clock
+        write["updateTransforms"] = [{"fieldPath": "userCreate_at", "setToServerValue": "REQUEST_TIME"}]
+        write["currentDocument"] = {"exists": False}
+    else:        # like a Save in the app: replace only these fields
+        write["updateMask"] = {"fieldPaths": list(fields)}
+        write["currentDocument"] = {"exists": True}
     return httpx.post(f"{FS}:commit", json={"writes": [write]},
                       headers={"Authorization": f"Bearer {token}"}).status_code
+
+
+def rest_create_profile(uid, token, email, age, sex="male"):
+    """Create users/{uid} the way the Flutter app's Create Account does."""
+    born = datetime.now(timezone.utc) - timedelta(days=round(age * 365.25))
+    return _commit(uid, token, {"userName": "Test User", "userEmail": email, "userSex": sex,
+                                "dateOfBirth": born, "contactNumber": "0123456789"}, create=True)
+
+
+def rest_update(uid, token, fields):
+    """Save some fields the way the app's My details / Medical history / Lifestyle screens do."""
+    return _commit(uid, token, fields, create=False)
+
+
+# Valid answers, in the app's layout (mobile/lib/services/firestore_maps.dart)
+MY_DETAILS = {"heightCm": 170.5, "education": "spm", "incomeMonthlyRm": 6500,
+              "healthCoverage": True, "everMarried": True, "workType": "government",
+              "residence": "urban"}
+HISTORY = {"highBloodPressure": True, "highCholesterol": False, "cholesterolChecked5y": True,
+           "heartDisease": False, "difficultyWalking": False, "updatedAt": datetime.now(timezone.utc)}
+LIFESTYLE = {"smoked100": True, "smokesNow": False, "activity": "oneTwoWeekly",
+             "fruit": "onceDaily", "vegetables": "rarely", "drinksAlcohol": False,
+             "updatedAt": datetime.now(timezone.utc)}
 
 
 def rest_get(path, token):
@@ -72,6 +113,20 @@ def test_rules(a, b):
     check(rest_create_profile(ub, tb, eb, age=40, sex="female") == 200, "second user can create theirs")
     check(rest_create_profile(ub, ta, eb, age=40) == 403, "user A cannot create user B's profile")
     check(rest_get(f"users/{ua}", ta) == 200, "user A can read their own profile")
+
+    # Saving answers from the app (FR-05)
+    check(rest_update(ua, ta, {"profile": MY_DETAILS, "history": HISTORY,
+                               "lifestyle": LIFESTYLE, "lastWeightKg": 70.5}) == 200,
+          "saving My details, Medical history, Lifestyle and weight is allowed")
+    check(rest_update(ua, ta, {"profile": {**MY_DETAILS, "heightCm": 999}}) == 403,
+          "a height of 999 cm is rejected (must be 90-250)")
+    check(rest_update(ua, ta, {"lifestyle": {**LIFESTYLE, "drinksPerWeek": 5}}) == 403,
+          "drinks per week for someone who doesn't drink is rejected")
+    check(rest_update(ua, ta, {"lifestyle": {**LIFESTYLE, "drinksAlcohol": True,
+                                             "drinksPerWeek": 5}}) == 200,
+          "drinks per week for someone who drinks is allowed")
+    check(rest_update(ua, ta, {"isAdmin": True}) == 403, "an unknown extra field is rejected")
+    check(rest_update(ua, ta, {"userEmail": "other@test.com"}) == 403, "the email cannot be changed")
     check(rest_get(f"users/{ub}", ta) == 403, "user A cannot read user B's profile")
     fake = {"fields": {"risk_percentage": {"doubleValue": 1.0}}}
     r = httpx.post(f"{FS}/users/{ua}/deepCheckResults", json=fake,

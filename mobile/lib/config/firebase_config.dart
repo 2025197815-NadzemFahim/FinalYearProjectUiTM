@@ -1,8 +1,8 @@
 // Which Firebase the app talks to.
 //
-// NOW (no Firebase project yet): the local emulator from firebase/ in the repo,
-// using a "demo-" project. The options below are placeholders - the emulator
-// doesn't check them.
+// NOW (no Firebase project yet): the local emulators (Auth + Firestore) from
+// firebase/ in the repo, using a "demo-" project. The options below are
+// placeholders - the emulators don't check them.
 //
 // LATER (real project): run `flutterfire configure` in mobile/. It generates
 // lib/firebase_options.dart; then return DefaultFirebaseOptions.currentPlatform
@@ -17,7 +17,12 @@ const bool useEmulator = bool.fromEnvironment('USE_EMULATOR', defaultValue: true
 ///   flutter run --dart-define=EMULATOR_HOST=192.168.1.20
 const String _emulatorHostOverride = String.fromEnvironment('EMULATOR_HOST');
 
-const int authEmulatorPort = 9099;
+/// The emulator ports, the same as firebase/firebase.json. Override them only if
+/// you start the emulators on other ports, e.g.
+///   flutter run --dart-define=FIRESTORE_EMULATOR_PORT=8180
+const int authEmulatorPort = int.fromEnvironment('AUTH_EMULATOR_PORT', defaultValue: 9099);
+const int firestoreEmulatorPort = int.fromEnvironment('FIRESTORE_EMULATOR_PORT', defaultValue: 8080);
+
 const String demoProjectId = 'demo-fyp-chronic'; // same as firebase/.firebaserc
 
 /// Where the emulator is, as seen from the device the app runs on.

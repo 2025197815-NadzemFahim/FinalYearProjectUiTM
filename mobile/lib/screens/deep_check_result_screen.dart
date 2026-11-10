@@ -10,11 +10,14 @@
 //  - right after a deep check (from the Home tab)  -> tab = AppTabs.home
 //  - from a History card                           -> tab = AppTabs.history
 // The mockup has no back arrow: use the bottom bar (or the phone's back gesture).
+// Under the card, a link opens the "Understanding your results" guide.
 // =============================================================================
 import 'package:flutter/material.dart';
 
 import '../models/disease.dart';
 import '../navigation/app_tabs.dart';
+import '../navigation/guides.dart';
+import '../services/app_services.dart';
 import '../services/prediction_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_bottom_nav.dart';
@@ -24,11 +27,13 @@ import '../widgets/phone_width.dart';
 class DeepCheckResultScreen extends StatelessWidget {
   const DeepCheckResultScreen({
     super.key,
+    required this.services,
     required this.result,
     this.explanation,
     this.tab = AppTabs.home,
   });
 
+  final AppServices services;
   final RiskResult result;
   final String? explanation; // null -> build it from the result
   final int tab;             // which bottom-bar icon is green
@@ -74,6 +79,15 @@ class DeepCheckResultScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: AppFonts.body(size: 14),
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  key: const Key('resultGuide'),
+                  onPressed: () => openGuide(context, services, Guides.readingResults),
+                  icon: const Icon(Icons.help_outline, size: 18),
+                  label: const Text('What does this result mean?'),
                 ),
               ),
             ],

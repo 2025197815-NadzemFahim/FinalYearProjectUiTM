@@ -9,8 +9,10 @@
 // Each screen only supplies its questions and what Save does.
 import 'package:flutter/material.dart';
 
+import '../services/profile_service.dart';
 import '../theme/app_theme.dart';
 import 'app_back_button.dart';
+import 'error_dialog.dart';
 import 'phone_width.dart';
 import 'primary_button.dart';
 
@@ -43,6 +45,19 @@ class DetailsPage extends StatelessWidget {
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(
           content: Text('Some answers are missing. They are marked in red above.')));
+  }
+
+  /// Runs [save] (one of the ProfileService save functions). Returns true when it
+  /// worked. If the database refused it, shows why and returns false: the screen
+  /// stays open, so nothing the user typed is lost.
+  static Future<bool> trySave(BuildContext context, Future<void> Function() save) async {
+    try {
+      await save();
+      return true;
+    } on ProfileFailure catch (e) {
+      if (context.mounted) await showErrorDialog(context, 'Could not save', e.message);
+      return false;
+    }
   }
 
   @override

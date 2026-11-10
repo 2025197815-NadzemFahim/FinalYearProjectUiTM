@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 
 import '../models/disease.dart';
 import '../navigation/app_tabs.dart';
+import '../navigation/guides.dart';
 import '../services/app_services.dart';
 import '../services/prediction_service.dart';
 import '../theme/app_theme.dart';
@@ -51,6 +52,15 @@ class QuickPredictionResultScreen extends StatelessWidget {
                   initiallyExpanded: i == 0,
                   child: _CardBody(services: services, result: results[i]),
                 ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  key: const Key('resultGuide'),
+                  onPressed: () => openGuide(context, services, Guides.readingResults),
+                  icon: const Icon(Icons.help_outline, size: 18),
+                  label: const Text('What do these results mean?'),
+                ),
+              ),
             ],
           ),
         ),

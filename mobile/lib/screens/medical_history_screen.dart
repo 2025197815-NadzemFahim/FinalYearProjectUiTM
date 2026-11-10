@@ -32,15 +32,21 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return DetailsPage.showMissing(context);
     setState(() => _saving = true);
-    await widget.services.profile.saveHistory(MedicalHistory(
+
+    final history = MedicalHistory(
       highBloodPressure: _highBp,
       highCholesterol: _highChol,
       cholesterolChecked5y: _cholChecked,
       heartDisease: _heart,
       difficultyWalking: _walking,
       updatedAt: DateTime.now(),
-    ));
-    if (mounted) Navigator.of(context).pop(true);
+    );
+    final saved = await DetailsPage.trySave(
+        context, () => widget.services.profile.saveHistory(history));
+
+    if (!mounted) return;
+    if (!saved) return setState(() => _saving = false); // stay here; the error was shown
+    Navigator.of(context).pop(true);
   }
 
   // One yes/no question; `set` stores the answer in the matching variable.

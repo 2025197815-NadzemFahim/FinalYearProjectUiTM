@@ -169,7 +169,9 @@ once you approve the model at Checkpoint 4.
 2. **Income:** the user enters monthly household income in RM; the app converts it to the BRFSS band by
    **percentile matching** (keeps the user's relative position), using DOSM HIES 2022 percentiles. BRFSS
    cumulative shares per band (from the training data): 3.9, 8.5, 14.8, 22.8, 33.0, 47.3, 64.4, 100%.
-   You supply the DOSM ringgit thresholds.
+   DOSM points used (filled 2026-11-11, monthly gross household income): P20 RM 3,440, P40 RM 5,250,
+   P50 RM 6,338, P60 RM 7,694, P80 RM 11,820, P90 RM 15,867 (`dosmIncomePercentiles` in
+   `mobile/lib/models/api_payloads.dart`). Example: RM 6,500 is about the 51st percentile → band 7.
 3. **Heart:** tapping Deep Check asks *"Have you done an exercise stress test recently?"*. Yes = full
    form (10 readings), No = reduced form (7 readings). Option (a): the reduced form still needs a routine
    clinic check (ECG, cholesterol, fasting blood sugar). BMI, Major Vessel Number and High Blood

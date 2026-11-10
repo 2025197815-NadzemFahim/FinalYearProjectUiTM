@@ -13,6 +13,7 @@ Demo accounts created by `seed` all use the password  password123
 import argparse
 import os
 import sys
+from datetime import date, datetime, timezone
 
 # Default to the local emulators so this tool can never touch a real
 # project by accident. Destructive commands refuse to run without them.
@@ -27,9 +28,28 @@ from backend.app import db                     # noqa: E402
 AUTH_HOST = os.environ["FIREBASE_AUTH_EMULATOR_HOST"]
 DEMO_PASSWORD = "password123"
 
+# Ali has answered everything (My details, Medical history, Lifestyle check), so
+# every check works straight away. Field names/values are the app's
+# (mobile/lib/services/firestore_maps.dart) and must pass firebase/firestore.rules.
+ALI_DETAILS = {
+    "profile": {"heightCm": 170, "education": "spm", "incomeMonthlyRm": 6500,
+                "healthCoverage": True, "everMarried": True, "workType": "government",
+                "residence": "urban"},
+    "history": {"highBloodPressure": True, "highCholesterol": True, "cholesterolChecked5y": True,
+                "heartDisease": False, "difficultyWalking": False,
+                "updatedAt": datetime.now(timezone.utc)},
+    "lifestyle": {"smoked100": True, "smokesNow": False, "activity": "oneTwoWeekly",
+                  "fruit": "onceDaily", "vegetables": "fewTimesWeek", "drinksAlcohol": False,
+                  "updatedAt": datetime.now(timezone.utc)},
+    "lastWeightKg": 85.0,
+}
+
 DEMO_USERS = [
-    {"email": "ali@demo.com", "name": "Ali Ahmad", "age": 52, "sex": "male"},
-    {"email": "siti@demo.com", "name": "Siti Aminah", "age": 61, "sex": "female"},
+    {"email": "ali@demo.com", "name": "Ali Ahmad", "dob": date(1974, 3, 15), "sex": "male",
+     "contact": "0123456789", "details": ALI_DETAILS},
+    # Siti only finished Create Account: shows the "Complete your details" flow
+    {"email": "siti@demo.com", "name": "Siti Aminah", "dob": date(1965, 8, 2), "sex": "female",
+     "contact": "0198765432"},
 ]
 # Sample history, shaped exactly like what the API saves (field names match backend/app/schemas.py)
 DEMO_RESULTS = {
@@ -70,7 +90,17 @@ def cmd_seed(_):
             uid = auth.create_user(email=u["email"], password=DEMO_PASSWORD,
                                    display_name=u["name"]).uid
             print(f"  created  {u['email']}  (password: {DEMO_PASSWORD})")
-        db.create_user_profile(uid, u["name"], u["email"], u["age"], u["sex"])
+
+        # Keep a profile that is already in the current layout (it may hold answers
+        # saved from the app); write it if missing or old (userAge instead of dateOfBirth).
+        existing = db.get_user(uid)
+        if existing and "dateOfBirth" in existing:
+            print(f"  profile  {u['email']}  kept")
+        else:
+            db.create_user_profile(uid, u["name"], u["email"], u["dob"], u["sex"], u["contact"],
+                                   u.get("details"))
+            print(f"  profile  {u['email']}  written")
+
         if not db.list_deep_checks(uid, limit=1):
             for disease, risk, notes, inputs in DEMO_RESULTS.get(u["email"], []):
                 db.save_deep_check(uid, disease, inputs, risk, notes, "seed-data")
@@ -79,8 +109,13 @@ def cmd_seed(_):
 
 def cmd_users(_):
     for u in db.list_users():
+        dob = u.get("dateOfBirth")
+        age = db.age_from_birth(dob) if dob else "?"
+        answered = [part for part in ("profile", "history", "lifestyle") if part in u]
+        note = "" if dob else "  (old layout: run reset, then seed)"
         print(f"  {u['userID']}  {u.get('userEmail', '?'):22s} {u.get('userName', '?'):16s} "
-              f"age {u.get('userAge', '?'):>3}  {u.get('userSex', '?')}")
+              f"age {age!s:>3}  {u.get('userSex', '?'):6s}  answered: "
+              f"{', '.join(answered) or '-'}{note}")
 
 
 def cmd_history(args):

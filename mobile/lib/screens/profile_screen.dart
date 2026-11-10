@@ -1,31 +1,40 @@
 // =============================================================================
 // 10. PROFILE INTERFACE (Figure 3.24) - the Profile tab
 //
-//            ( photo ring + camera badge )
-//                   Nadzem Fahim
-//              nadzemfahim@gmail.com
-//                  [ Edit Profile ]
-//   | My Activity        > |
-//   | Settings           > |
-//   | Privacy & Security > |
+//               ( NF )                 <- photo ring with the name's initials
+//            Nadzem Fahim
+//        nadzemfahim@gmail.com
+//           [ Edit Profile ]
+//   | My details          > |
+//   | Medical history     > |
+//   | Lifestyle check     > |
 //
-//   | Log out            > |
+//   | My Activity         > |
+//   | Health guides       > |
+//   | Settings            > |
+//   | Privacy & Security  > |
 //
-// Logout is real (use case Table 3.17). Edit Profile and the "Your health details"
-// card open My details, Medical history and the Lifestyle check (task U4).
-// My Activity / Settings / Privacy have no mockup yet ("not designed yet").
+//   | Log out             > |
+//
+// Logout is real (use case Table 3.17). Edit Profile and the first card open
+// My details, Medical history and the Lifestyle check (task U4). My Activity,
+// Settings and Privacy & Security had no mockup; their screens follow the same
+// look (widgets/info_page.dart).
 // =============================================================================
 import 'package:flutter/material.dart';
 
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/coming_soon.dart';
 import '../widgets/menu_card.dart';
 import '../widgets/phone_width.dart';
+import 'guides_screen.dart';
 import 'lifestyle_check_screen.dart';
 import 'medical_history_screen.dart';
+import 'my_activity_screen.dart';
 import 'my_details_screen.dart';
+import 'privacy_screen.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.services, required this.user});
@@ -67,7 +76,7 @@ class ProfileScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
           children: [
-            Center(child: _ProfilePhoto(onCameraTap: () => showComingSoon(context, 'Profile photo'))),
+            Center(child: _ProfilePhoto(name: name)),
             const SizedBox(height: 14),
             Text(name, textAlign: TextAlign.center, style: AppFonts.body(size: 22, weight: FontWeight.w500)),
             Text(user.email ?? '', textAlign: TextAlign.center, style: AppFonts.body(size: 13)),
@@ -103,19 +112,28 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 24),
             MenuCard(items: [
               MenuItem(
+                key: const Key('menuActivity'),
                 icon: Icons.access_time_filled,
                 label: 'My Activity',
-                onTap: () => showComingSoon(context, 'My Activity'),
+                onTap: () => _open(context, MyActivityScreen(services: services)),
               ),
               MenuItem(
+                key: const Key('menuGuides'),
+                icon: Icons.menu_book,
+                label: 'Health guides',
+                onTap: () => _open(context, GuidesScreen(services: services)),
+              ),
+              MenuItem(
+                key: const Key('menuSettings'),
                 icon: Icons.settings,
                 label: 'Settings',
-                onTap: () => showComingSoon(context, 'Settings'),
+                onTap: () => _open(context, SettingsScreen(services: services, user: user)),
               ),
               MenuItem(
+                key: const Key('menuPrivacy'),
                 icon: Icons.shield,
                 label: 'Privacy & Security',
-                onTap: () => showComingSoon(context, 'Privacy & Security'),
+                onTap: () => _open(context, PrivacyScreen(services: services, user: user)),
               ),
             ]),
             const SizedBox(height: 24),
@@ -135,49 +153,39 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-/// The dark-green ring with the small camera badge at the bottom-right.
+/// The dark-green ring with the person's initials inside ("Nadzem Fahim" -> "NF").
+///
+/// A real photo needs two more things: a package to pick a picture
+/// (image_picker) and somewhere to keep it (Firebase Storage). Then show it with
+///   decoration: BoxDecoration(image: DecorationImage(image: NetworkImage(url), ...))
 class _ProfilePhoto extends StatelessWidget {
-  const _ProfilePhoto({required this.onCameraTap});
-  final VoidCallback onCameraTap;
+  const _ProfilePhoto({required this.name});
+
+  final String name;
 
   static const double size = 165;
 
+  /// The first letter of the first two words, in capitals. "User" -> "U".
+  static String initials(String name) {
+    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+    return words.take(2).map((w) => w[0].toUpperCase()).join();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Stack draws children on top of each other; Positioned places the badge.
-    return SizedBox(
+    return Container(
+      key: const Key('profileInitials'),
       width: size,
       height: size,
-      child: Stack(
-        children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: AppColors.darkGreen, width: 6), // ring colour/thickness
-              // When photos are added:
-              //   image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
-            ),
-          ),
-          Positioned(
-            right: 6,
-            bottom: 6,
-            child: Material(
-              color: AppColors.darkGreen,
-              shape: const CircleBorder(side: BorderSide(color: Colors.white, width: 2)),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onCameraTap,
-                child: const Padding(
-                  padding: EdgeInsets.all(7),
-                  child: Icon(Icons.photo_camera, color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-          ),
-        ],
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.mintCard,
+        border: Border.all(color: AppColors.darkGreen, width: 6), // ring colour/thickness
+      ),
+      child: Text(
+        initials(name),
+        style: AppFonts.serif(size: 56, color: AppColors.darkGreen),
       ),
     );
   }

@@ -1,6 +1,7 @@
 // Saved details and results must never pass from one user to the next on a
 // shared device. Plain unit tests (no screens): run with  flutter test
 import 'package:chronic_disease_app/models/disease.dart';
+import 'package:chronic_disease_app/services/auth_service.dart';
 import 'package:chronic_disease_app/services/history_service.dart';
 import 'package:chronic_disease_app/services/profile_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,7 +27,11 @@ void main() {
     test("a new account does not inherit the previous user's details", () async {
       final s = ProfileService(initial: sampleDetails(), ownerUid: 'u1');
       await s.saveAccount(
-          uid: 'new', dateOfBirth: DateTime(1990, 1, 2), sex: 'female', contact: '0123456789');
+        user: const AppUser(uid: 'new', email: 'new@demo.com', displayName: 'New User'),
+        dateOfBirth: DateTime(1990, 1, 2),
+        sex: 'female',
+        contact: '0123456789',
+      );
       final p = s.details.value.profile;
       expect((p.sex, p.heightCm, p.incomeMonthlyRm), ('female', null, null));
       expect(s.details.value.history.isComplete, isFalse);

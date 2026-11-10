@@ -55,13 +55,23 @@ explained in §9).
 | **1 Login** | ✅ green wave · ✅ "Hello" + subtitle · ✅ email field · ✅ password field + eye toggle · ✅ "Forgot your password?" · ✅ LOG IN button · ✅ "Don't have an account? Create" |
 | **2 Create Account** | ✅ wave top-left + bottom-left · ✅ title + subtitle · ✅ first/last name side by side · ✅ email · ✅ password (🔶 eye icon moved here from the email row) · ✅ contact number · ✅ age · ✅ Male/Female toggle · ✅ Create Account button |
 | **3 Forgot Password** | ✅ back arrow · ✅ serif heading · ✅ grey subtitle · ✅ email field · ✅ Reset Password button |
-| **4 Main** | ✅ green header "Welcome back, *name*!" · ✅ Predict a Disease card · ✅ View Prediction History card · 🔶 swipeable banners with dots (drawn, not images) · 🔶 sideways info cards · ✅ bottom bar |
-| **5 Quick Input** | ✅ back arrow · ✅ Age / Sex / Weight / Height / BMI boxes (🔶 BMI is calculated) · ✅ 4 YES/NO radio rows · ✅ Smoking Status + General Health dropdowns · ✅ Check button · ✅ bottom bar |
-| **6 Quick Result** | ✅ back arrow · ✅ 3 expandable cards, highest risk first · ✅ summary sentence · ✅ Deep Check button · ✅ bottom bar |
-| **7 Deep-Check Input** | ✅ back arrow + disease title · ✅ 2-column number boxes · ✅ Sex box · ✅ YES/NO row · ✅ Chest Pain Type dropdown · ✅ Deep Check button · 🔶 Diabetes and Stroke versions (no mockup) |
-| **8 Deep-Check Result** | ✅ circle with tick · ✅ big coloured % · ✅ expandable card with explanation + disclaimer · ✅ bottom bar |
+| **4 Main** | ✅ green header "Welcome back, *name*!" · 🔶 "Complete your details" / "Retake the Lifestyle check" / "not loaded" banner when needed · ✅ Predict a Disease card · ✅ View Prediction History card · 🔶 swipeable banners with dots (drawn, not images; a tap opens a Health guide) · 🔶 sideways info cards (a tap opens a guide) · ✅ bottom bar |
+| **5 Quick Input** | ✅ back arrow · 🔶 "Using your saved details" card (age, sex, height, history and lifestyle come from the saved details, task U4) · ✅ Weight + BMI boxes (🔶 BMI is calculated, 🔶 (?) after Weight opens a guide) · ✅ poor mental / physical health days · ✅ General Health dropdown · ✅ YES/NO row · ✅ Check button · ✅ bottom bar |
+| **6 Quick Result** | ✅ back arrow · ✅ 3 expandable cards, highest risk first · ✅ summary sentence · ✅ Deep Check button · 🔶 "What do these results mean?" link · ✅ bottom bar |
+| **7 Deep-Check Input** | ✅ back arrow + disease title · 🔶 heart first asks "Have you done an exercise stress test?" · 🔶 saved-details card · ✅ 2-column number boxes · ✅ YES/NO row · ✅ Chest Pain Type dropdown · ✅ Deep Check button · 🔶 a (?) after each reading opens its guide · 🔶 Diabetes and Stroke versions (no mockup) |
+| **8 Deep-Check Result** | ✅ circle with tick · ✅ big coloured % · ✅ expandable card with explanation + disclaimer · 🔶 "What does this result mean?" link · ✅ bottom bar |
 | **9 History** | ✅ serif "History" title · ✅ date headings (Today, 10 May…) · ✅ "Diagnosis N" cards with arrow · ✅ tap → full result · 🔶 second line shows disease + % |
-| **10 Profile** | ✅ green ring photo + camera badge (🔶 badge shows a message) · ✅ name + email · ✅ Edit Profile pill (🔶 message) · ✅ My Activity / Settings / Privacy & Security card (🔶 messages) · ✅ separate Log out card with confirmation (works) |
+| **10 Profile** | ✅ green ring (🔶 the name's initials instead of a photo, no camera badge) · ✅ name + email · ✅ Edit Profile pill (opens My details) · 🔶 extra card: My details / Medical history / Lifestyle check · ✅ My Activity / Settings / Privacy & Security card (🔶 plus Health guides) · ✅ separate Log out card with confirmation |
+
+**Screens with no mockup** (built in the same style; see §6.11):
+
+| Screen | Opened from |
+|---|---|
+| My details, Medical history, Lifestyle check (task U4) | Profile, Edit Profile, the banner on Main, the saved-details card |
+| Health guides list + one guide (task U5) | Profile → Health guides, Settings → Health guides; one guide directly from a (?), a banner, an info card or a result |
+| My Activity | Profile |
+| Settings | Profile |
+| Privacy & Security | Profile, Settings |
 
 ---
 
@@ -76,25 +86,40 @@ look:
 | `screens/` + `widgets/` | **V**iew | What you see | No Firebase or HTTP calls; ask a service instead |
 | `services/` | **C**ontroller | Login, predictions, history: everything that talks to the outside world | No widgets |
 | `theme/` | View settings | Every colour and font | Screens say `AppColors.green`, never `Color(0xFF...)` |
-| `navigation/` | Glue | Which tab is selected | |
+| `navigation/` | Glue | Which tab is selected, and small flows several screens share (details check, opening a guide, the password link) | |
+| `config/` | Settings | The API address and the Firebase emulator ports | |
+| `utils/` | Helpers | Small functions with no widgets, e.g. writing a date | No widgets |
 
 ```
 mobile/lib/
-├── main.dart                         start-up: Firebase → emulator → runApp(App)
+├── main.dart                         start-up: Firebase → emulators → runApp(App)
 ├── app.dart                          MaterialApp + theme + first screen (AuthGate)
-├── config/firebase_config.dart       emulator now, real Firebase later
+├── config/
+│   ├── api_config.dart               the API address per device (Chrome, Android emulator)
+│   └── firebase_config.dart          emulator now, real Firebase later; emulator ports
 ├── theme/app_theme.dart              AppColors, AppFonts (Poppins / Young Serif / Lato), AppTheme
 ├── models/
-│   ├── disease.dart                  Disease enum, RiskLevel (low/moderate/high), RiskResult
+│   ├── disease.dart                  Disease enum (+ icon), RiskLevel (low/moderate/high), RiskResult
+│   ├── user_details.dart             the saved details: UserProfile, MedicalHistory, LifestyleAnswers
+│   ├── api_payloads.dart             answers → the exact API request bodies (incl. income percentile)
+│   ├── deep_check_form.dart          the questions for each disease's deep-check form (+ guide ids)
 │   ├── history_entry.dart            one saved deep-check result
-│   └── deep_check_form.dart          the questions for each disease's deep-check form
-├── navigation/app_tabs.dart          Home=0, History=1, Profile=2 + goTo()
+│   └── tutorial.dart                 one Health guide (TutorialTopic) + the guide ids (Guides)
+├── navigation/
+│   ├── app_tabs.dart                 Home=0, History=1, Profile=2 + goTo()
+│   ├── details_flow.dart             "are the saved details complete?" before a check
+│   ├── guides.dart                   openGuide(context, services, Guides.bloodPressure)
+│   └── password_change.dart          "Change password": confirm, then email a link
 ├── services/
-│   ├── app_services.dart             bundles the 3 services so screens get them in one parameter
+│   ├── app_services.dart             bundles the services so screens get them in one parameter
 │   ├── auth_service.dart             login, register, reset password, logout (Firebase Auth)
-│   ├── prediction_service.dart       DUMMY quick + deep predictions (to be replaced by FastAPI)
-│   └── history_service.dart          DUMMY in-memory history (to be replaced by Firestore)
-├── screens/                          one file per mockup
+│   ├── prediction_service.dart       the AI: quick + deep checks through the FastAPI backend
+│   ├── profile_service.dart          the saved details in Firestore users/{uid}
+│   ├── history_service.dart          the saved deep-check results (Firestore, newest first)
+│   ├── firestore_maps.dart           app data ↔ Firestore fields (one place for every field name)
+│   └── tutorial_service.dart         reads the Health guides from assets/tutorials.json
+├── utils/date_text.dart              "Today", "10 May", "10 May 2025"
+├── screens/                          one file per mockup (plus the screens with no mockup)
 │   ├── auth_gate.dart                signed out → Login · signed in → HomeShell
 │   ├── home_shell.dart               the 3 tab pages + bottom bar
 │   ├── login_screen.dart             1  (Fig 3.15)
@@ -106,7 +131,15 @@ mobile/lib/
 │   ├── deep_check_input_screen.dart  7  (Fig 3.21)  serves all 3 diseases
 │   ├── deep_check_result_screen.dart 8  (Fig 3.22)
 │   ├── history_screen.dart           9  (Fig 3.23)  History tab
-│   └── profile_screen.dart           10 (Fig 3.24)  Profile tab
+│   ├── profile_screen.dart           10 (Fig 3.24)  Profile tab
+│   ├── my_details_screen.dart        no mockup: height, education, income, ... (U4)
+│   ├── medical_history_screen.dart   no mockup: blood pressure, cholesterol, ... (U4)
+│   ├── lifestyle_check_screen.dart   no mockup: smoking, activity, food, alcohol (U4)
+│   ├── guides_screen.dart            no mockup: the list of Health guides (U5)
+│   ├── guide_screen.dart             no mockup: one guide (U5)
+│   ├── my_activity_screen.dart       no mockup: results per disease + details status
+│   ├── settings_screen.dart          no mockup: account, password, About
+│   └── privacy_screen.dart           no mockup: what is saved and who can see it
 └── widgets/                          pieces used by more than one screen
     ├── primary_button.dart           the green button (LOG IN, Check, Deep Check…)
     ├── rounded_field.dart            pill-shaped text field with icon (login/sign-up)
@@ -116,11 +149,17 @@ mobile/lib/
     ├── labeled_box.dart              "label above white box" (number, choice, 2-column grid)
     ├── yes_no_table.dart             NO / YES radio table
     ├── labeled_dropdown.dart         square dropdown with serif label
-    ├── expandable_card.dart          card that opens/closes (results)
+    ├── help_button.dart              the small grey (?) that opens a guide
+    ├── expandable_card.dart          card that opens/closes (results, saved details)
+    ├── saved_details_card.dart       "Using your saved details" on the check forms
+    ├── choice_question_field.dart    one question with tappable answers (U4 screens)
+    ├── details_page.dart             layout of My details / Medical history / Lifestyle check
+    ├── info_page.dart                layout of My Activity / Settings / Privacy (InfoCard, InfoRow)
     ├── menu_card.dart                profile menu rows
-    ├── phone_width.dart              keeps screens phone-width in a wide browser
-    └── coming_soon.dart              "X is not designed yet" message
-mobile/test/auth_flow_test.dart       11 widget tests covering every flow
+    ├── error_dialog.dart             the error popup
+    └── phone_width.dart              keeps screens phone-width in a wide browser
+mobile/assets/tutorials.json          the text of the 10 Health guides (edit it, no Dart needed)
+mobile/test/                          56 tests (see docs/MOBILE_GUIDE.md §1)
 ```
 
 **How the screens connect:**
@@ -131,7 +170,11 @@ AuthGate ──signed out──► LoginScreen ──push──► CreateAccount
    └──signed in──► HomeShell  [ Home | History | Profile ]  (IndexedStack + AppBottomNav)
                      Home (MainScreen) ──push──► QuickPredictionInput ──push──► QuickPredictionResult
                                                    ──push──► DeepCheckInput ──replace──► DeepCheckResult
+                     Home banners / info cards, every (?) ──push──► GuideScreen   (openGuide)
                      History ──push──► DeepCheckResult (tab = History)
+                     Profile ──push──► My details · Medical history · Lifestyle check
+                             ──push──► My Activity · Health guides ──push──► GuideScreen
+                             ──push──► Settings · Privacy & Security
                      Profile ──Log out──► signOut() → AuthGate shows Login by itself
 ```
 
@@ -214,7 +257,7 @@ An iPhone needs a Mac with Xcode, so on Windows use Chrome or Android.
 
 ```powershell
 flutter analyze   # expect: No issues found!
-flutter test      # expect: All tests passed!  (11 tests, no emulator needed)
+flutter test      # expect: All tests passed!  (56 tests, no emulator needed)
 ```
 
 ### 5.5 Common errors
@@ -292,22 +335,24 @@ Goal: make the **Check** button on the Quick Prediction screen wider.
 | Green header | main_screen | `_Header` | Greeting | `padding`, `Radius.elliptical(220, 70)` curve, font size |
 | Predict a Disease card | main_screen | `_ActionCard` (lavender) | Push Quick Input | `background`, `icon`, `title`, `subtitle`, `onTap` |
 | View Prediction History card | main_screen | `_ActionCard` (mint) | Switch to History tab | same |
-| Banner carousel + dots | main_screen | `_BannerCarousel`, `_Banner`, `_banners` list | Health promotion | add/remove entries in `_banners`, `viewportFraction`, `height: 170` |
-| Blue/red info cards | main_screen | `_InfoCardRow` | Health promotion | `_cards` list, `width: 315` |
+| "Complete your details" banner | main_screen | `_DetailsBanner` + `_BannerRow` | Details missing, Lifestyle retake due, or details not loaded (with Try again) | texts, colours |
+| Banner carousel + dots | main_screen | `_BannerCarousel`, `_Banner`, `_banners` (a list of `_BannerData`) | Health promotion; a tap opens the banner's `guide` | add/remove entries in `_banners`, `viewportFraction`, `height: 170` |
+| Blue/red info cards | main_screen | `_InfoCardRow` | Health promotion; a tap opens a guide | `_cards` list (title, colour, guide), `width: 315` |
 | Bottom bar | `widgets/app_bottom_nav.dart` | `AppBottomNav` | Tabs | icons, labels, colours |
 
 ### 5 · Quick Prediction Input (Fig 3.19) → `screens/quick_prediction_input_screen.dart`
 
 | Mockup element | File | Widget / class | Purpose | What I can modify |
 |---|---|---|---|---|
-| Age / Weight / Height / BMI boxes | `widgets/labeled_box.dart` | `LabeledNumberBox` | Number input | `label`, `suffix` ("KG"), `decimal`, `readOnly` |
-| Sex box | labeled_box | `LabeledChoiceBox` | Choice | `options` |
+| Saved details card | `widgets/saved_details_card.dart` | `SavedDetailsCard` | Shows the saved age, sex, height, history and lifestyle that will be sent; Edit buttons | the `rows` list |
+| Weight / BMI / poor-health days | `widgets/labeled_box.dart` | `LabeledNumberBox` | Number input | `label`, `suffix` ("KG"), `decimal`, `min`/`max`, `readOnly`, `onHelp` |
+| (?) after Weight | `widgets/help_button.dart` | `HelpButton`, shown when `onHelp:` is set | Opens the weight & BMI guide | which guide (`Guides.weightBmi`) |
 | Two-column layout | labeled_box | `TwoColumnGrid` | Layout | `gap`, `rowGap` |
 | Box look (all boxes) | labeled_box | `_Pill` | White rounded shadow box | `height: 52`, `circular(18)`, padding |
-| YES/NO rows | `widgets/yes_no_table.dart` | `YesNoTable` | Radio answers | the `_yesNo` map in the screen (add/remove questions) |
-| Smoking / General Health | `widgets/labeled_dropdown.dart` | `LabeledDropdown` | Choice | `options` lists |
+| General Health | `widgets/labeled_dropdown.dart` | `LabeledDropdown` | Choice | `generalHealthOptions` |
+| YES/NO row | `widgets/yes_no_table.dart` | `YesNoTable` | Radio answer | the `_yesNo` map in the screen |
 | Check | primary_button | `PrimaryButton(key: 'quickCheck')` | Calls `predictions.quickPredict` | label, size |
-| BMI calculation | quick input screen | `_updateBmi()` | weight ÷ height² | formula, decimals |
+| BMI calculation | quick input screen | `_updateBmi()` | weight ÷ height² (height from My details) | formula, decimals |
 
 ### 6 · Quick Prediction Result (Fig 3.20) → `screens/quick_prediction_result_screen.dart`
 
@@ -317,16 +362,22 @@ Goal: make the **Check** button on the Quick Prediction screen wider.
 | "Your responses indicate…" | `services/prediction_service.dart` | `PredictionService.quickSummary` | Sentence | wording |
 | Deep Check | primary_button | `PrimaryButton(width: 126, height: 32)` | Push Deep-Check Input | size |
 | Order of cards | prediction_service | `results.sort(...)` | Highest risk first | sort rule |
+| "What do these results mean?" | quick result screen | `TextButton.icon(key: 'resultGuide')` | Opens the results guide | text |
+
+The card header is a `Wrap`: when the title and the grey text don't fit on one line, the grey
+text moves to a second line instead of cutting the title off.
 
 ### 7 · Deep-Check Input (Fig 3.21) → `screens/deep_check_input_screen.dart` + `models/deep_check_form.dart`
 
 | Mockup element | File | Widget / class | Purpose | What I can modify |
 |---|---|---|---|---|
-| Questions per disease | `models/deep_check_form.dart` | `DeepCheckForm.forDisease` | List of questions | add/remove `NumberQuestion`, `YesNoQuestion`, `ChoiceQuestion` |
+| Questions per disease | `models/deep_check_form.dart` | `DeepCheckForm.forDisease` | List of questions | `sample` (starting value), `help` (which guide the (?) opens). Adding or removing a question also needs the API (`backend/app/schemas.py`) |
+| Stress-test question (heart) | deep_check_input_screen | `_stressTestQuestion()` | Yes = full model, No = reduced model | texts |
 | ← + "Heart Disease" | deep_check_input_screen | `Row(AppBackButton, FittedBox(Text))` | Title | `AppFonts.serif(size: 34)` |
-| Number boxes + Sex | labeled_box | `LabeledNumberBox`, `LabeledChoiceBox` via `_gridBoxes()` | Inputs | order in `_gridBoxes()` |
-| High Blood Pressure? | yes_no_table | `YesNoTable` | Radio | — |
-| Chest Pain Type | labeled_dropdown | `LabeledDropdown` in `FractionallySizedBox(widthFactor: 0.7)` | Choice | width factor |
+| Number boxes | labeled_box | `LabeledNumberBox`, one per `form.numbers` | Inputs | order in `deep_check_form.dart` |
+| (?) after a label | help_button | `HelpButton` via `onHelp: _helpFor(q.help)` | Opens that reading's guide | `help:` in `deep_check_form.dart` |
+| Chest pain during the test? | yes_no_table | `YesNoTable(help: ...)` | Radio | — |
+| Chest Pain Type, Resting ECG | labeled_dropdown | `LabeledDropdown(onHelp: ...)` | Choice | `options` in `deep_check_form.dart` |
 | Deep Check | primary_button | `PrimaryButton(key: 'deepCheckSubmit')` | Calls `predictions.deepCheck`, then `history.add` | size |
 
 ### 8 · Deep-Check Result (Fig 3.22) → `screens/deep_check_result_screen.dart`
@@ -337,25 +388,42 @@ Goal: make the **Check** button on the Quick Prediction screen wider.
 | 80% | deep_check_result_screen | `Text` with `result.level.color` | Risk | `size: 64` |
 | Risk colour | `models/disease.dart` | `RiskLevel.fromPercent` | red/orange/green | thresholds (60 / 30) |
 | Explanation card | expandable_card | `ExpandableCard(initiallyExpanded: true)` | Details + disclaimer | text in `PredictionService.deepExplanation` |
+| "What does this result mean?" | deep_check_result_screen | `TextButton.icon(key: 'resultGuide')` | Opens the results guide | text |
 
 ### 9 · History (Fig 3.23) → `screens/history_screen.dart`
 
 | Mockup element | File | Widget / class | Purpose | What I can modify |
 |---|---|---|---|---|
 | "History" | history_screen | `Text` + `AppFonts.serif(size: 40)` | Title | size |
-| Today / 10 May | history_screen | `_dateHeading()` | Group by date | format, month names |
+| Today / 10 May | `utils/date_text.dart` | `DateText.day()` | Group by date | format, month names |
 | Diagnosis cards | history_screen | `_HistoryCard` | Opens result | margin, radius, second line text |
-| Data | `services/history_service.dart` | `HistoryService.entries` (`ValueNotifier`) | List of results | sample entries in `_sampleEntries()` |
+| Pull down to refresh | history_screen | `RefreshIndicator(onRefresh: history.refresh)` | Read again | — |
+| Data | `services/history_service.dart` | `HistoryService.entries` (`ValueNotifier`), read from Firestore | List of results | `maxResults`; the test samples in `_sampleEntries()` |
 
 ### 10 · Profile (Fig 3.24) → `screens/profile_screen.dart`
 
 | Mockup element | File | Widget / class | Purpose | What I can modify |
 |---|---|---|---|---|
-| Green ring + camera | profile_screen | `_ProfilePhoto` (`Stack` + `Positioned`) | Photo | `size: 165`, ring width, badge position |
+| Green ring | profile_screen | `_ProfilePhoto` | The name's initials (no photo yet) | `size: 165`, ring width, colours, `initials()` |
 | Name / email | profile_screen | `Text` | Shows user | sizes |
-| Edit Profile | profile_screen | `_GreyPillButton` | Placeholder | colour, padding |
-| My Activity / Settings / Privacy | `widgets/menu_card.dart` | `MenuCard` + `MenuItem` | Placeholders | `icon`, `label`, `onTap` |
+| Edit Profile | profile_screen | `_GreyPillButton` | Opens My details | colour, padding |
+| Menu cards | `widgets/menu_card.dart` | `MenuCard` + `MenuItem` | My details, Medical history, Lifestyle check · My Activity, Health guides, Settings, Privacy & Security | `icon`, `label`, `onTap` |
 | Log out | menu_card | `MenuItem(key: 'logout')` → `_confirmLogout` | Sign out | dialog text |
+
+### 11 · Screens with no mockup
+
+| Screen | File | Built from | What I can modify |
+|---|---|---|---|
+| My details, Medical history, Lifestyle check | `screens/my_details_screen.dart`, `medical_history_screen.dart`, `lifestyle_check_screen.dart` | `DetailsPage` (`widgets/details_page.dart`): back arrow, title, subtitle, questions, Save | the questions and texts |
+| Health guides (list) | `screens/guides_screen.dart` | `FutureBuilder` over `TutorialService.topics()`, one `_GuideCard` per guide | card look |
+| One guide | `screens/guide_screen.dart` | `_UsedForChip`, `_VideoBox`, `_Section` | the layout. The words are in `assets/tutorials.json` |
+| My Activity | `screens/my_activity_screen.dart` | `InfoPage` + `InfoCard` + `InfoRow` (`widgets/info_page.dart`) | which rows, the status words and colours |
+| Settings | `screens/settings_screen.dart` | the same | rows, `appVersion`, the About text |
+| Privacy & Security | `screens/privacy_screen.dart` | `InfoPage` + `Bullet` | the bullet texts (keep them true when storage changes) |
+
+**Changing a guide's words:** edit `mobile/assets/tutorials.json` (no Dart needed), then press
+**R** (hot restart). The guides are read once and kept, so **r** is not enough. A new guide also
+needs its id in `Guides` (`models/tutorial.dart`) if a (?) or banner should open it.
 
 ---
 
@@ -481,44 +549,62 @@ borderRadius: BorderRadius.circular(30),
 ```
 </details>
 
-### Exercise 4 · Add a YES/NO question
-**File:** `screens/quick_prediction_input_screen.dart` · **Field:** `_yesNo` map
-**Do:** add "Diabetes in Family?" with the default answer NO.
-**Observe:** a new radio row appears, and its answer is sent to `quickPredict` in `answers`.
-You wrote no layout code.
+### Exercise 4 · Add a Health guide and link it from a (?)
+**Files:** `assets/tutorials.json`, `models/tutorial.dart`, `screens/quick_prediction_input_screen.dart`
+**Do:** add a guide "Counting poor health days" and show a (?) after **Poor mental-health days**
+that opens it.
+**Observe:** after **R**, the new guide is in Profile → Health guides, and the (?) opens it.
+You wrote one line of layout code.
 <details><summary>Solution</summary>
 
-```dart
-final Map<String, bool> _yesNo = {
-  'High Blood Pressure?': true,
-  'High Cholesterol?': true,
-  'Alcohol Consumption': false,
-  'Physical Activity Level': true,
-  'Diabetes in Family?': false,
-};
+1. In `tutorials.json`, add a new entry to the `"topics"` list (mind the comma before it):
+```json
+{
+  "id": "poor-health-days",
+  "title": "Counting poor health days",
+  "summary": "Which days to count in the past 30 days.",
+  "icon": "brain",
+  "usedFor": "Poor mental-health days, Poor physical-health days",
+  "video": null,
+  "sections": [
+    { "heading": "What counts",
+      "text": "Count the days in the past 30 days when your health was not good." }
+  ]
+}
 ```
+2. In `class Guides` (`models/tutorial.dart`):
+```dart
+static const poorHealthDays = 'poor-health-days';
+```
+3. On the `mentalDays` box in the quick input screen:
+```dart
+onHelp: () => openGuide(context, widget.services, Guides.poorHealthDays),
+```
+4. Add `Guides.poorHealthDays` to `linkedGuides` in `test/guides_and_profile_test.dart`, so the
+   tests check that the guide exists. `"video": null` means the guide has no video box.
 </details>
 
-### Exercise 5 · Add a question to the Stroke deep check
-**File:** `models/deep_check_form.dart` · **Method:** `forDisease`, `Disease.stroke`
-**Do:** add a number question "Average Glucose" (sample `105`, decimals allowed) and a YES/NO
-"Heart Disease?".
-**Observe:** open Quick Result → Stroke → Deep Check. The new boxes appear. The screen file
-didn't change, because it builds itself from this list.
+### Exercise 5 · Change a reading's starting value and its guide
+**File:** `models/deep_check_form.dart` · **Method:** `forDisease`, `Disease.heart`
+**Do:** make **Resting BP** start at `120` instead of `146`, and make its (?) open the
+"Understanding your results" guide.
+**Observe:** open Quick Result → Heart Disease → Deep Check. The box starts at 120 and the (?)
+opens the other guide. The screen file didn't change, because it builds itself from this list.
 <details><summary>Solution</summary>
 
 ```dart
-Disease.stroke => const DeepCheckForm(
-  numbers: [
-    NumberQuestion('Age', sample: '58'),
-    NumberQuestion('BMI', sample: '41.5', decimal: true),
-    NumberQuestion('Glucose Level', sample: '140'),
-    NumberQuestion('Average Glucose', sample: '105', decimal: true),
-  ],
-  yesNo: [YesNoQuestion('Hypertension?', sample: true), YesNoQuestion('Heart Disease?')],
-  choices: [_sex, _smoking],
+const NumberQuestion(
+  'Resting BP',
+  'resting_bp',
+  sample: '120',              // was '146'
+  min: 60,
+  max: 250,
+  unit: 'mmHg',
+  help: Guides.readingResults, // was Guides.bloodPressure
 ),
 ```
+Leave `min` and `max` alone: they are the same range the API accepts
+(`backend/app/schemas.py`). Change `help` back afterwards, the blood pressure guide fits better.
 </details>
 
 ### Exercise 6 · Give PrimaryButton a colour option (reusable widgets)
@@ -548,17 +634,19 @@ A default value must be a constant. `AppColors.green` qualifies because it is de
 
 ### Exercise 7 · Add a banner to the Main screen
 **File:** `screens/main_screen.dart` · **List:** `_banners`
-**Do:** add a fourth banner, e.g. "World Heart Day / September 29" in green.
-**Observe:** you can swipe to a fourth page and a fourth dot appears.
+**Do:** add a fourth banner, e.g. "World Heart Day / September 29" in green, that opens the
+healthy habits guide.
+**Observe:** you can swipe to a fourth page, a fourth dot appears, and tapping it opens the guide.
 <details><summary>Solution</summary>
 
 ```dart
-(
-  'September 29',
-  'WORLD HEART DAY',
-  'Use your heart: move more, eat well, stop smoking.',
-  [Color(0xFF66BB6A), Color(0xFF2E7D32)],
-  Icons.monitor_heart,
+_BannerData(
+  small: 'September 29',
+  big: 'WORLD HEART DAY',
+  caption: 'Use your heart: move more, eat well, stop smoking.',
+  colors: [Color(0xFF66BB6A), Color(0xFF2E7D32)],
+  icon: Icons.monitor_heart,
+  guide: Guides.healthyHabits,
 ),
 ```
 </details>
@@ -583,37 +671,43 @@ if (percent >= 50) return RiskLevel.high;
 - [x] All 10 interfaces from Section 3.5.4, with navigation matching Figure 3.25
 - [x] Bottom bar on the 7 screens that have it in the mockups; tab switching closes pushed screens
 - [x] Login, Create Account (Firebase Auth), Forgot Password (reset email), Logout with confirmation
-- [x] Quick prediction → results → deep check → result → saved to History, using dummy data
-- [x] Deep-check form for all 3 diseases from one data-driven screen
+- [x] Real AI: quick prediction → results → deep check → result, through the FastAPI backend
+- [x] Deep-check form for all 3 diseases from one data-driven screen (heart with or without a stress test)
+- [x] Saved details in Firestore `users/{uid}` (Create Account, My details, Medical history,
+      Lifestyle check); History reads the saved results from `deepCheckResults`
+- [x] Health guides: 10 guides in `assets/tutorials.json`, a (?) after every reading that has a
+      guide, banners, info cards and both result screens link to them; "Video coming soon" boxes
+- [x] My Activity, Settings (change password, About) and Privacy & Security
 - [x] Fonts from the mockups (Poppins, Young Serif, Lato via `google_fonts`)
 
-**How it was checked (2026-10-15):**
-- `flutter analyze` reports no issues.
-- `flutter test`: 11 widget tests pass. They cover login validation, wrong password, the eye
-  toggle, create account, forgot password, logout, quick → deep → History, opening a closed
-  result card and the Diabetes form, and the Main → History card.
-- `flutter build web --debug` succeeds. Screens 1–10 were compared side by side with the mockup
-  PNGs in Chrome at 393 × 852, logged in to the Auth emulator with a seeded account. Found and
-  fixed this way: "Deep Check" wrapping onto two lines, cut-off name hints, the Main header
-  height, a clipped decoration, and "a 80%" → "an 80%".
-- **Not checked:** running on an Android emulator or real phone; the Stroke form and the
-  Create Account fixes were only checked by tests, not by eye.
+**How it was checked (2026-11-11):**
+- `flutter analyze` reports no issues; `flutter test`: 56 tests pass.
+- `flutter build web --release` against the Firebase emulators and the API (dev models), viewed at
+  375 × 812 with a seeded account: Main (banner → guide), Profile, My Activity (2 saved results
+  read from Firestore), Settings (About; Change password on the Auth emulator), Privacy &
+  Security, Health guides, the Quick form and results, the Diabetes and Heart deep-check forms
+  with their (?) → guide, and a diabetes deep check that was saved and then shown in History.
+  Found and fixed this way: long card titles were cut off ("Diabetes Mellit…", "Using yo…").
+- The first full comparison with the mockup PNGs (2026-10-15, 393 × 852) fixed "Deep Check"
+  wrapping onto two lines, cut-off name hints, the Main header height, a clipped decoration,
+  and "a 80%" → "an 80%".
+- **Not checked:** running on an Android emulator or a real phone.
 
 ### Placeholders and assumptions (decide or replace later)
 
 | # | Item | Now | To make it real |
 |---|---|---|---|
-| 1 | AI predictions | `PredictionService` returns fixed numbers (heart 50/80, diabetes 40/62, stroke 20/35) | Replace the bodies with `http` calls to FastAPI `POST /predict/quick` and `/predict/deep/{disease}` (`docs/MOBILE_GUIDE.md` §4) |
-| 2 | History storage | In memory; 7 sample entries; lost on restart | Read/write Firestore `users/{uid}/deepCheckResults`, or call `GET /history` |
-| 3 | Contact, age, sex at sign-up | Validated but **not saved** | Add `cloud_firestore`, write `users/{uid}` (MOBILE_GUIDE §4 step 4) |
-| 4 | Quick form fields | 11 fields as in the mockup | The backend model needs **19 BRFSS features** (`backend/app/schemas.py`). The form, the report and the model must be aligned (CLAUDE.md "Known issues") |
-| 5 | Diabetes / Stroke deep-check forms | Built from the data dictionary (no mockup) | Confirm the fields with your supervisor; edit `deep_check_form.dart` |
-| 6 | Banners and info cards | Drawn with gradients and icons, because the mockup uses third-party posters | Add your own images to `assets/` and use `DecorationImage` (comment in `_Banner`) |
-| 7 | Edit Profile, camera badge, My Activity, Settings, Privacy & Security, banner taps | Show "… is not designed yet." | Need mockups or descriptions first |
+| 1 | Heart check without a stress test | Asks the 7 readings, then shows a message | Train and approve the reduced model (H1), then add its endpoint (`docs/MOBILE_GUIDE.md` §4) |
+| 2 | Diabetes / Stroke deep-check forms | Built from the data dictionary (no mockup) | Confirm the fields with your supervisor |
+| 3 | Banners and info cards | Drawn with gradients and icons, because the mockup uses third-party posters; a tap opens a Health guide | Add your own images to `assets/` and use `DecorationImage` (comment in `_Banner`) |
+| 4 | Health guide videos | Every guide shows "Video coming soon" (`video.url` is null) | Put a link in `"url"` in `tutorials.json` and add `url_launcher` to open it (comment in `_VideoBox`) |
+| 5 | My Activity, Settings, Privacy & Security, Health guides | No mockup; built in the same style as My details | Show them to your supervisor, or add mockups to the report |
+| 6 | Profile photo | The name's initials in the ring; no camera badge | Needs `image_picker` + Firebase Storage (comment in `_ProfilePhoto`) |
+| 7 | Deleting an account | Not in the app; Privacy & Security says so; the rules block deletes | A delete flow: the backend removes the results and the profile, then the Auth account |
 | 8 | Risk colours and words | below 30 low, 30–60 moderate, above 60 high | Not in the report; agree on thresholds |
-| 9 | History card second line | Shows disease + % (empty in mockup) | Remove the `Text` in `_HistoryCard` if you prefer the mockup exactly |
-| 10 | Eye icon on Create Account | On Password (the mockup shows it on E-mail) | Looks like a mockup slip |
-| 11 | "120 KG" | The number is centred and "KG" sits at the right edge | Cosmetic |
-| 12 | Back arrow on Deep-Check Result | None (as in the mockup); leave via the bottom bar or system back | Add `AppBackButton` if users get stuck |
-| 13 | Profile photo | Empty ring | Needs Firebase Storage + image picker |
+| 9 | Income percentile | DOSM HIES 2022 points in `dosmIncomePercentiles` (`models/api_payloads.dart`) | Check against the HIES 2024 report |
+| 10 | History card second line | Shows disease + % (empty in mockup) | Remove the `Text` in `_HistoryCard` if you prefer the mockup exactly |
+| 11 | Eye icon on Create Account | On Password (the mockup shows it on E-mail) | Looks like a mockup slip |
+| 12 | "120 KG" | The number is centred and "KG" sits at the right edge | Cosmetic |
+| 13 | Back arrow on Deep-Check Result | None (as in the mockup); leave via the bottom bar or system back | Add `AppBackButton` if users get stuck |
 | 14 | The Auth emulator's "Running in emulator mode" strip on web | Covers the bottom bar in Chrome | Disappears with a real Firebase project |

@@ -50,6 +50,26 @@ abstract class PredictionService {
       'lifestyle habits. This is a screening estimate, not a diagnosis. We recommend '
       'consulting a healthcare professional for further evaluation.';
 
+  /// The same disclaimer the API sends (backend/app/main.py DISCLAIMER).
+  static const disclaimer = 'This is a screening estimate, not a medical diagnosis. '
+      'Please consult a healthcare professional.';
+
+  /// Paragraph for a REAL deep-check result: the risk, the model's notes as
+  /// bullet points, then the disclaimer. Used for a new result from the API and
+  /// for saved results read back from the database (History).
+  static String explainWithNotes(
+    RiskResult r,
+    List<String> notes, {
+    String disclaimer = PredictionService.disclaimer,
+  }) {
+    final risk = 'The model estimates ${_article(r.percent)} ${r.percentText}% likelihood of '
+        '${r.disease.label.toLowerCase()}.';
+    final bullets = [for (final note in notes) '• $note'].join('\n');
+
+    // Paragraphs separated by an empty line; no empty paragraph when there are no notes.
+    return [risk, if (bullets.isNotEmpty) bullets, disclaimer].join('\n\n');
+  }
+
   /// "an 80%", "an 8.5%", "an 11%", "an 18%" but "a 50%" (by how the number sounds).
   static String _article(double percent) {
     final p = percent.floor();
@@ -108,15 +128,17 @@ class ApiPredictionService implements PredictionService {
     // Signed in -> send the login token, so the backend saves the result to the
     // user's history in Firestore (FR-10). Without it the check still works.
     final body = await _post('/predict/deep/$path', request, token: await idToken());
-    final notes = [for (final n in body['explanation'] as List) '• $n'].join('\n');
-    final percent = (body['risk_percent'] as num).toDouble();
-    final base = RiskResult(disease: disease, percent: percent);
+    final notes = [for (final note in body['explanation'] as List) '$note'];
+    final result = RiskResult(disease: disease, percent: (body['risk_percent'] as num).toDouble());
+
     return RiskResult(
       disease: disease,
-      percent: percent,
-      explanation: 'The model estimates ${PredictionService._article(percent)} '
-          '${base.percentText}% likelihood of ${disease.label.toLowerCase()}.\n\n'
-          '$notes\n\n${body['disclaimer']}',
+      percent: result.percent,
+      explanation: PredictionService.explainWithNotes(
+        result,
+        notes,
+        disclaimer: body['disclaimer'] as String? ?? PredictionService.disclaimer,
+      ),
     );
   }
 

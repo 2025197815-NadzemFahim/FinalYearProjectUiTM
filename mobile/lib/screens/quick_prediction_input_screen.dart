@@ -20,17 +20,18 @@ import '../models/api_payloads.dart';
 import '../models/disease.dart';
 import '../navigation/app_tabs.dart';
 import '../navigation/details_flow.dart';
+import '../navigation/guides.dart';
 import '../services/app_services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/app_bottom_nav.dart';
+import '../widgets/error_dialog.dart';
 import '../widgets/labeled_box.dart';
 import '../widgets/labeled_dropdown.dart';
 import '../widgets/phone_width.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/saved_details_card.dart';
 import '../widgets/yes_no_table.dart';
-import 'login_screen.dart' show showErrorDialog;
 import 'quick_prediction_result_screen.dart';
 
 class QuickPredictionInputScreen extends StatefulWidget {
@@ -147,6 +148,7 @@ class _QuickPredictionInputScreenState extends State<QuickPredictionInputScreen>
                       min: 20,
                       max: 350,
                       onChanged: (_) => setState(_updateBmi),
+                      onHelp: () => openGuide(context, widget.services, Guides.weightBmi),
                     ),
                     LabeledNumberBox(label: 'BMI', controller: _bmi, readOnly: true),
                     LabeledNumberBox(

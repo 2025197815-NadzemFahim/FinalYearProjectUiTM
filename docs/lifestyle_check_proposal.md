@@ -1,7 +1,7 @@
 # Lifestyle Check, Profile and History: questions, levels and mappings (task U1)
 
-Created 2026-10-29. Status: **CHECKPOINT 6 approved 2026-10-29**, except income (item 6), which waits
-for the DOSM HIES 2022 table.
+Created 2026-10-29. Status: **CHECKPOINT 6 approved 2026-10-29**. Income (item 6) filled 2026-11-11
+with DOSM HIES 2022 points; saving (section D) built 2026-11-11.
 
 Rule: each answer must map **exactly** to what the model was trained on, without changing the
 reading's meaning. For each reading below:
@@ -103,7 +103,7 @@ The heavy cut-off is fixed by the data definition. The drink sizes follow the US
 | 2 | Sex | Male / Female | `sex` | exact |
 | 3 | Height | Height in cm | used for BMI | exact |
 | 4 | Education | see table E | `education_level` 1-6 | ⚠️ E1 |
-| 5 | Income | Monthly household income (RM) | `income_level` 1-8 | ⚠️ needs the DOSM table (approved method: percentile matching) |
+| 5 | Income | Monthly household income (RM) | `income_level` 1-8 | percentile matching with DOSM HIES 2022 points (`dosmIncomePercentiles` in `models/api_payloads.dart`); approximate below P20 |
 | 6 | Health coverage | see H1 | `has_health_coverage` | ⚠️ H1 |
 | 7 | Ever married | *Have you ever been married?* (divorced / widowed = yes) | `ever_married` | exact |
 | 8 | Work type | see W1 | `work_type` | ⚠️ W1 |
@@ -176,10 +176,12 @@ users/{uid}
                updatedAt }
 ```
 
-⚠️ **The current security rules reject this.** `firebase/firestore.rules` allows a user document to hold
-**only** userName, userEmail, userAge, userSex and userCreate_at. The rules must be extended with type and
-range checks for every new field, which is part of U2; I'll review your version. `docs/DATABASE.md` and
-the ERD (Figure 3.14) need the same update.
+✅ **Built 2026-11-11** exactly as above, plus `contactNumber` and `lastWeightKg` (the last weight, so
+the Weight box starts filled). Choices are stored by name (`"spm"`, `"threePlusWeekly"`) and
+`drinksPerWeek` only for people who drink. The field names are in one place in the app,
+`mobile/lib/services/firestore_maps.dart`; `firebase/firestore.rules` (`validUser`) checks the type
+and range of every field; `backend/tests/test_db.py` tests it. `docs/DATABASE.md` §4 shows the layout.
+The ERD (Figure 3.14) still needs the same update.
 
 ## E. How pre-fill looks (built in U3/U4)
 - **Quick Prediction:** a collapsed card at the top, *"Using your saved details · updated 12 Oct ·
@@ -208,6 +210,12 @@ the ERD (Figure 3.14) need the same update.
 1-3, 5, 8: approved as proposed. 4: health coverage **option (i)** (citizen, insurance/takaful or panel
 clinic = yes). 7: retake reminder after **90 days**. 6: income **pending**. You will send the DOSM HIES 2022
 percentiles; until then the income question is built but its RM-to-band table is a placeholder.
+
+### Change 2026-11-11
+Income (item 6): the RM-to-band table uses the DOSM HIES 2022 points P20 RM 3,440, P40 RM 5,250,
+P50 RM 6,338, P60 RM 7,694, P80 RM 11,820 and P90 RM 15,867. DOSM publishes no point below P20, so
+lower incomes are a straight line from RM 0 (approximate). To be checked against the DOSM report
+(or replaced by HIES 2024) before the final run.
 
 ### Change 2026-11-04
 Profile readings 1-2 (date of birth, sex) and the contact number moved to **Create Account** (the only

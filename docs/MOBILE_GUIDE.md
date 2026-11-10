@@ -1,9 +1,11 @@
 # Mobile App Guide (Flutter)
 
-All 10 interfaces from report Section 3.5.4 are built, plus My details, Medical history and the
-Lifestyle check. **Predictions come from the real AI** through the FastAPI backend; saved details
-and History are still kept in memory (tasks U2 and 3 in `docs/improvement_plan.md`). **`docs/UI_GUIDE.md`** is the main guide to the screens: mockup → file mapping,
-Flutter concepts and exercises. This file covers running the app and connecting the real backend.
+All 10 interfaces from report Section 3.5.4 are built, plus My details, Medical history, the
+Lifestyle check, Health guides (with (?) help icons on the forms), My Activity, Settings and
+Privacy & Security. **Predictions come from the real AI** through the FastAPI backend; saved details
+are read from and written to Firestore `users/{uid}`, and History reads the saved deep-check results.
+**`docs/UI_GUIDE.md`** is the main guide to the screens: mockup → file mapping, Flutter concepts and
+exercises. This file covers running the app and connecting the real backend.
 
 All commands: PowerShell, inside `C:\fyp\FinalYearProjectUiTM\mobile`.
 
@@ -32,16 +34,26 @@ prediction server… Is the API running?"*. To try the screens without the API (
 cd C:\fyp\FinalYearProjectUiTM\mobile
 flutter run -d chrome
 ```
-**Until profile saving uses Firestore (U2), create an account in the same app session first.**
-Date of birth, sex and contact are asked only at Create Account and are kept in memory, so the
-seeded demo accounts (and accounts made in an earlier run) show *"Account details missing"* when
-starting a check. Create Account → log in with it → complete your details → check.
+Log in with a seeded demo account (`python -m backend.db_tool seed`; the accounts and password are
+in `backend/db_tool.py`, `DEMO_USERS` / `DEMO_PASSWORD`), or Create Account. Everything you save
+stays in the emulator database (exported to `firebase/emulator-data/` when the emulators stop).
+If an old demo account says *"Account details missing"*, it was seeded before date of birth was
+stored: run `python -m backend.db_tool seed` again (it rewrites old-layout profiles).
+
+**Emulator ports.** The app expects the Auth emulator on 9099 and Firestore on 8080 (the defaults
+in `firebase/firebase.json`). If you run the emulators on other ports, tell the app:
+`flutter run -d chrome --dart-define=AUTH_EMULATOR_PORT=9199 --dart-define=FIRESTORE_EMULATOR_PORT=8180`.
 
 While it runs: press **r** for hot reload (instant UI changes, keeps you logged in),
 **R** for hot restart, **q** to quit.
 
 The red "Running in emulator mode" strip at the bottom is Firebase's own warning in web debug
 builds. It disappears with a real Firebase project.
+
+**Web release builds only** (`flutter build web`): reloading the page while signed in signs you
+out, because FlutterFire restores the saved user before the app can point it at the emulator.
+Log in again (if the strip is missing after a reload, reload once more). `flutter run` (debug) is
+not affected, and neither is a real Firebase project.
 
 **On an Android emulator** (once you set one up in Android Studio): `flutter run` and pick it.
 The app automatically uses `10.0.2.2` — the Android emulator's address for your PC.
@@ -50,8 +62,11 @@ The app automatically uses `10.0.2.2` — the Android emulator's address for you
 API with `uvicorn backend.app.main:app --host 0.0.0.0`. The same address is used for both
 (`config/api_config.dart`).
 
-**Tests** (no emulator or API needed, ~10 s): `flutter test` → expect `All tests passed!` (37 tests).
+**Tests** (no emulator or API needed, ~10 s): `flutter test` → expect `All tests passed!` (56 tests).
 **Lint:** `flutter analyze` → expect `No issues found!`
+
+**Formatting.** The code lines up end-of-line comments by hand so they read like a table.
+`dart format` would collapse them, so format only the file you are editing (or not at all).
 
 ---
 
@@ -108,27 +123,24 @@ More concepts, explained for this project: `docs/UI_GUIDE.md` §7.
 | Service | Now | Next |
 |---|---|---|
 | `ApiPredictionService` (`services/prediction_service.dart`) | ✅ **real AI**: `POST /predict/quick` and `/predict/deep/{disease}`; sends the login token so deep checks are saved; clear messages for every failure. Requests are built in `models/api_payloads.dart` | the "no stress test" heart check gets its endpoint after the reduced model (H1) is trained and approved; until then it shows a message |
-| `ProfileService` | in memory, cleared when a different person logs in | **U2 (you):** read/write `users/{uid}` (layout in `docs/lifestyle_check_proposal.md` section D) |
-| `HistoryService` | in memory (7 samples + this session's checks), cleared when a different person logs in | read `users/{uid}/deepCheckResults` ordered by `created_at` (`cloud_firestore`), or `GET /history`, in `startSession()` |
+| `ProfileService` (`services/profile_service.dart`) | ✅ **Firestore** `users/{uid}`: loaded at every login, saved by My details / Medical history / Lifestyle check (field names in `services/firestore_maps.dart`). A failed save shows *"Could not save"* and keeps the screen open; a failed load shows a red banner on Main with *Try again* | — |
+| `HistoryService` (`services/history_service.dart`) | ✅ **Firestore** `users/{uid}/deepCheckResults`, newest first (max 100); pull down on History to refresh | — |
+| `TutorialService` (`services/tutorial_service.dart`) | ✅ Health guides from `assets/tutorials.json` (inside the app, works offline) | add video links (`video.url`) |
+
+Built without a database (`ProfileService()` / `HistoryService()`, as the tests do), both keep
+everything in memory and History shows the 7 sample cards of Figure 3.23.
 
 **Shared device.** At every login `HomeShell` calls `AppServices.startSession(uid)`. If it's a
 different person from the last one, the saved details and this session's results are dropped
 *before* the first tab is drawn, so the next person never sees them (`test/session_test.dart` and
 the "next person never sees" widget test). The same person logging back in keeps them.
 
-**Saving the profile to Firestore (U2).** Create Account asks **date of birth**, sex and contact
-(the only place they are asked). The call sites are already in place, so you only fill in the
-bodies in `services/profile_service.dart`:
-- `saveAccount(uid: ...)` is called by `register()` through `onCreated`, **while the new user is
-  still signed in** (just before its `signOut()`), which is when the rules allow the write.
-- `load(uid)` is called at every login by `startSession()`; read `users/{uid}` and set `details`.
-- `saveProfile` / `saveHistory` / `saveLifestyle` / `saveLastWeight` run while signed in; use `uid`.
-
-Store `dateOfBirth` (a timestamp) instead of
-`userAge`: the rules currently require `userAge` (18-120) and allow only 5 fields, so extend
-`validProfile` in `firebase/firestore.rules` with type/range checks for every new field, and update
-`docs/DATABASE.md` and the ERD. Needs `flutter pub add cloud_firestore` and, in `main.dart`,
-`FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost(), 8080);`.
+**How saving works.** Create Account writes `users/{uid}` (name, email, date of birth, sex,
+contact) through `register(onCreated: ...)` while the new user is still signed in. If that write
+fails, the new Auth account is deleted again, so there is never an account without its profile.
+Later saves (`saveProfile` / `saveHistory` / `saveLifestyle`) update one map each (`profile`,
+`history`, `lifestyle`); `saveLastWeight` updates `lastWeightKg` in the background. Every field is
+checked by `firebase/firestore.rules` (`validUser`), and `backend/tests/test_db.py` tests those rules.
 
 The API address for each device is in `config/api_config.dart` (`127.0.0.1:8000` for Chrome,
 `10.0.2.2:8000` for the Android emulator, `--dart-define=API_URL=...` to override). The API allows

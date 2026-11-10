@@ -25,10 +25,12 @@ import '../models/deep_check_form.dart';
 import '../models/disease.dart';
 import '../navigation/app_tabs.dart';
 import '../navigation/details_flow.dart';
+import '../navigation/guides.dart';
 import '../services/app_services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/app_bottom_nav.dart';
+import '../widgets/error_dialog.dart';
 import '../widgets/labeled_box.dart';
 import '../widgets/labeled_dropdown.dart';
 import '../widgets/phone_width.dart';
@@ -36,7 +38,6 @@ import '../widgets/primary_button.dart';
 import '../widgets/saved_details_card.dart';
 import '../widgets/yes_no_table.dart';
 import 'deep_check_result_screen.dart';
-import 'login_screen.dart' show showErrorDialog;
 
 class DeepCheckInputScreen extends StatefulWidget {
   const DeepCheckInputScreen({super.key, required this.services, required this.disease});
@@ -59,6 +60,7 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
   final Map<String, TextEditingController> _numbers = {};
   final Map<String, bool> _yesNo = {};          // YesNoTable shows the label...
   final Map<String, String> _yesNoKeys = {};    // ...this maps label -> API key
+  final Map<String, String> _yesNoHelp = {};    // ...and label -> guide id
   final Map<String, Choice> _choices = {};
 
   bool _loading = false;
@@ -81,11 +83,18 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
     for (final q in form.yesNo) {
       _yesNo[q.label] = q.sample;
       _yesNoKeys[q.label] = q.key;
+      if (q.help != null) _yesNoHelp[q.label] = q.help!;
     }
     for (final q in form.choices) {
       _choices[q.key] = q.options.first;
     }
     _form = form;
+  }
+
+  /// What a (?) button does: open that Health guide (null id = no button).
+  VoidCallback? _helpFor(String? guideId) {
+    if (guideId == null) return null;
+    return () => openGuide(context, widget.services, guideId);
   }
 
   @override
@@ -130,7 +139,7 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
     // pushReplacement: the result REPLACES this form, so pressing back from the
     // result goes to the Quick Result list and can't submit the form twice.
     await Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => DeepCheckResultScreen(result: result!),
+      builder: (_) => DeepCheckResultScreen(services: services, result: result!),
     ));
   }
 
@@ -185,7 +194,18 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
         Text('A treadmill test at a hospital or heart clinic. Its report gives your maximum heart '
             'rate, ST depression and whether you had chest pain during the test.',
             style: AppFonts.body(size: 13, color: AppColors.hint)),
-        const SizedBox(height: 28),
+
+        // Link to the guide that explains the test and its report.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const Key('stressTestGuide'),
+            onPressed: _helpFor(Guides.stressTest),
+            icon: const Icon(Icons.help_outline, size: 18),
+            label: const Text('What is a stress test?'),
+          ),
+        ),
+        const SizedBox(height: 20),
         Center(
           child: PrimaryButton(key: const Key('stressYes'), label: 'Yes, I have the results',
               width: 260, onPressed: () => choose(true)),
@@ -221,6 +241,7 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
               decimal: q.decimal,
               min: q.min,
               max: q.max,
+              onHelp: _helpFor(q.help),
             ),
         ]),
         if (form.numbers.any((q) => q.key == 'weight_kg'))
@@ -231,7 +252,11 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
           ),
         const SizedBox(height: 14),
         if (_yesNo.isNotEmpty)
-          YesNoTable(answers: _yesNo, onChanged: (q, v) => setState(() => _yesNo[q] = v)),
+          YesNoTable(
+            answers: _yesNo,
+            onChanged: (q, v) => setState(() => _yesNo[q] = v),
+            help: {for (final e in _yesNoHelp.entries) e.key: _helpFor(e.value)!},
+          ),
         const SizedBox(height: 8),
         // ---- drop-downs (Chest Pain Type, Resting ECG)
         for (final q in form.choices) ...[
@@ -241,6 +266,7 @@ class _DeepCheckInputScreenState extends State<DeepCheckInputScreen> {
             options: [for (final o in q.options) o.label],
             onChanged: (label) =>
                 setState(() => _choices[q.key] = q.options.firstWhere((o) => o.label == label)),
+            onHelp: _helpFor(q.help),
           ),
           const SizedBox(height: 12),
         ],

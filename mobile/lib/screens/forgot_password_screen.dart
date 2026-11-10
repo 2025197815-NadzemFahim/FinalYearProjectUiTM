@@ -8,9 +8,10 @@ import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_back_button.dart';
+import '../widgets/error_dialog.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/rounded_field.dart';
-import 'login_screen.dart' show showErrorDialog, validateEmail;
+import 'login_screen.dart' show validateEmail;
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key, required this.services});

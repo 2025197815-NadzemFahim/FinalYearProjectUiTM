@@ -1,0 +1,257 @@
+{
+  "_comment": "Health guides (Tutorial section, task U5). Edit the text here; no Dart code changes needed. Each topic: id (used by the help icons and banners), title, summary, icon (one of the names in lib/models/tutorial.dart), usedFor, video (title + url; url null = 'coming soon' placeholder), sections (heading + text and/or bullets). General health information only, not medical advice.",
+  "topics": [
+    {
+      "id": "blood-pressure",
+      "title": "Measuring your blood pressure",
+      "summary": "Get a reading you can trust, at home or at a clinic.",
+      "icon": "bloodPressure",
+      "usedFor": "Resting BP (Heart deep check)",
+      "video": { "title": "How to measure blood pressure at home", "url": null },
+      "sections": [
+        {
+          "heading": "Before you measure",
+          "bullets": [
+            "No coffee, exercise or smoking for 30 minutes before.",
+            "Empty your bladder, then sit quietly for 5 minutes.",
+            "Sit with your back supported and both feet flat on the floor.",
+            "Rest your arm on a table so the cuff is at the level of your heart.",
+            "Use a cuff that fits your arm, on bare skin, not over a sleeve."
+          ]
+        },
+        {
+          "heading": "Taking the reading",
+          "bullets": [
+            "Stay still and do not talk while the machine measures.",
+            "Take 2 readings, 1 to 2 minutes apart, and use the average."
+          ]
+        },
+        {
+          "heading": "Which number to enter",
+          "text": "A reading looks like 146/90 mmHg. Enter the TOP (first) number, called systolic pressure: 146 in this example."
+        }
+      ]
+    },
+    {
+      "id": "weight-bmi",
+      "title": "Weight, height and BMI",
+      "summary": "How to weigh yourself and how the app works out your BMI.",
+      "icon": "scale",
+      "usedFor": "Weight (every check), Height (My details)",
+      "video": { "title": "Measuring height and weight correctly", "url": null },
+      "sections": [
+        {
+          "heading": "Weight",
+          "bullets": [
+            "Weigh yourself in the morning, after the toilet and before breakfast.",
+            "Wear light clothes and no shoes.",
+            "Use the same scale each time, on a hard, flat floor."
+          ]
+        },
+        {
+          "heading": "Height",
+          "bullets": [
+            "Stand straight against a wall, without shoes, heels together.",
+            "Look straight ahead; ask someone to mark the top of your head.",
+            "Measure from the floor to the mark, in centimetres."
+          ]
+        },
+        {
+          "heading": "Your BMI",
+          "text": "You never type your BMI. The app calculates it from your weight and the height saved in My details: BMI = weight (kg) / height (m) x height (m). Example: 70 kg and 1.70 m gives 70 / 2.89 = 24.2."
+        }
+      ]
+    },
+    {
+      "id": "cholesterol",
+      "title": "Cholesterol",
+      "summary": "Where to find your total cholesterol and how to convert the units.",
+      "icon": "lab",
+      "usedFor": "Cholesterol Level (Heart deep check)",
+      "video": { "title": "Reading a cholesterol blood test", "url": null },
+      "sections": [
+        {
+          "heading": "Where to find it",
+          "text": "Total cholesterol comes from a blood test (a lipid profile) at a clinic or lab. Use the TOTAL cholesterol line of the report, not LDL or HDL."
+        },
+        {
+          "heading": "Converting mmol/L to mg/dL",
+          "text": "Most Malaysian lab reports use mmol/L, but the app asks for mg/dL. Multiply by 38.67. Example: 6.1 mmol/L x 38.67 = 236 mg/dL."
+        }
+      ]
+    },
+    {
+      "id": "blood-sugar",
+      "title": "Blood sugar and HbA1c",
+      "summary": "Fasting blood sugar, glucose and HbA1c: what they are and the units.",
+      "icon": "bloodSugar",
+      "usedFor": "Fasting Blood Sugar, Blood Glucose, Average Glucose, HbA1c",
+      "video": { "title": "How to read a blood sugar test", "url": null },
+      "sections": [
+        {
+          "heading": "Fasting blood sugar",
+          "text": "Your blood sugar after not eating or drinking anything except plain water for at least 8 hours, usually first thing in the morning. It comes from a finger-prick meter or a blood test."
+        },
+        {
+          "heading": "Blood glucose / average glucose",
+          "text": "A blood sugar reading from your latest test or clinic visit. If you have several, use a typical one, not your highest."
+        },
+        {
+          "heading": "HbA1c",
+          "text": "A blood test that shows your average blood sugar over the last 2 to 3 months, written as a percentage (for example 6.6%). It is on your lab report; no fasting is needed."
+        },
+        {
+          "heading": "Converting mmol/L to mg/dL",
+          "text": "Malaysian meters and reports often show mmol/L, but the app asks for mg/dL. Multiply by 18. Example: 7.8 mmol/L x 18 = 140 mg/dL."
+        }
+      ]
+    },
+    {
+      "id": "stress-test",
+      "title": "The exercise stress test",
+      "summary": "What the treadmill test measures, and where each number is on the report.",
+      "icon": "treadmill",
+      "usedFor": "Max Heart Rate, ST Depression, chest pain during the test",
+      "video": { "title": "What happens during a stress test", "url": null },
+      "sections": [
+        {
+          "heading": "What it is",
+          "text": "A test at a hospital or heart clinic: you walk on a treadmill that gets faster while an ECG records your heart. Staff watch you the whole time. Only enter results from a real test; if you have not had one, choose 'No' and the app uses a check that does not need it."
+        },
+        {
+          "heading": "The numbers on the report",
+          "bullets": [
+            "Max heart rate: the highest heart rate reached during the test, in beats per minute (bpm).",
+            "ST depression: how far a part of the ECG line (the ST segment) dropped during exercise, in millimetres (mm). Your report or doctor gives this number.",
+            "Chest pain during the test: whether exercise brought on chest pain (exercise-induced angina)."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chest-pain-ecg",
+      "title": "Chest pain type and resting ECG",
+      "summary": "How to choose the right option for these two heart questions.",
+      "icon": "ecg",
+      "usedFor": "Chest Pain Type, Resting ECG Result (Heart deep check)",
+      "video": { "title": "Types of chest pain explained", "url": null },
+      "sections": [
+        {
+          "heading": "Chest pain type",
+          "bullets": [
+            "Typical angina: pressure or tightness in the chest that comes with effort or stress and goes away with rest.",
+            "Atypical angina: chest discomfort with only some of those features.",
+            "Non-anginal pain: chest pain that does not seem related to the heart (for example it changes when you press on the chest or move).",
+            "No chest pain (asymptomatic): you have no chest pain."
+          ]
+        },
+        {
+          "heading": "Resting ECG result",
+          "text": "An ECG taken while you lie still. The result is written on the report: 'normal', an 'ST-T wave abnormality', or 'left ventricular hypertrophy' (LVH). If you are not sure, ask the clinic that did it."
+        },
+        {
+          "heading": "Chest pain right now?",
+          "text": "Severe chest pain, or pain with sweating or shortness of breath, is an emergency. Call 999 at once; do not use the app."
+        }
+      ]
+    },
+    {
+      "id": "reading-results",
+      "title": "Understanding your results",
+      "summary": "What the risk percentage means, and what to do next.",
+      "icon": "results",
+      "usedFor": "Quick Prediction and Deep-Check results",
+      "video": { "title": "What a risk score means", "url": null },
+      "sections": [
+        {
+          "heading": "The percentage",
+          "text": "The AI compares your answers with patterns in large health datasets and estimates how likely the disease is for people like you. Roughly, 30% means that about 30 in 100 people with answers like yours have the disease."
+        },
+        {
+          "heading": "The colours",
+          "bullets": [
+            "Green (below 30%): low risk.",
+            "Orange (30 to 60%): moderate risk.",
+            "Red (above 60%): high risk."
+          ]
+        },
+        {
+          "heading": "It is not a diagnosis",
+          "text": "This is a screening estimate. A low result does not mean you are healthy, and a high result does not mean you have the disease. Show your result to a doctor, especially if it is moderate or high."
+        }
+      ]
+    },
+    {
+      "id": "healthy-habits",
+      "title": "Healthy habits for your heart",
+      "summary": "Small daily changes that lower the risk of all three diseases.",
+      "icon": "heart",
+      "usedFor": "Lifestyle check",
+      "video": { "title": "Five habits for a healthier heart", "url": null },
+      "sections": [
+        {
+          "heading": "Every week",
+          "bullets": [
+            "Be active for at least 150 minutes a week, such as a brisk 30-minute walk on 5 days.",
+            "Go for regular health checks: blood pressure, blood sugar and cholesterol."
+          ]
+        },
+        {
+          "heading": "Every day",
+          "bullets": [
+            "Eat fruit and vegetables every day: half your plate as vegetables and fruit.",
+            "Choose less salt, sugar and fried food.",
+            "Do not smoke. Ask your clinic about the mQuit quit-smoking service if you want to stop.",
+            "If you drink alcohol, drink less."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stroke-fast",
+      "title": "Spot a stroke: act F.A.S.T.",
+      "summary": "The four signs of a stroke, and why every minute counts.",
+      "icon": "brain",
+      "usedFor": "Stroke awareness",
+      "video": { "title": "Recognising a stroke with F.A.S.T.", "url": null },
+      "sections": [
+        {
+          "heading": "F.A.S.T.",
+          "bullets": [
+            "Face: one side of the face droops. Ask them to smile.",
+            "Arms: one arm is weak or numb. Ask them to raise both arms.",
+            "Speech: speech is slurred or strange. Ask them to repeat a simple sentence.",
+            "Time: call 999 at once, and note the time the signs started."
+          ]
+        },
+        {
+          "heading": "Why speed matters",
+          "text": "Treatment works best in the first hours. Do not wait to see if the signs go away, and do not drive yourself to hospital."
+        }
+      ]
+    },
+    {
+      "id": "infections",
+      "title": "Chronic disease and infections",
+      "summary": "Why people with heart disease or diabetes should take extra care.",
+      "icon": "shield",
+      "usedFor": "General health",
+      "video": { "title": "Protecting yourself from infections", "url": null },
+      "sections": [
+        {
+          "heading": "Why it matters",
+          "text": "Infections such as COVID-19 and influenza are more likely to become serious in people with heart disease, diabetes or a past stroke."
+        },
+        {
+          "heading": "Simple protection",
+          "bullets": [
+            "Wash your hands often with soap and water.",
+            "Ask your clinic which vaccines are recommended for you.",
+            "Keep your blood sugar and blood pressure under control.",
+            "Stay home and rest when you are unwell."
+          ]
+        }
+      ]
+    }
+  ]
+}

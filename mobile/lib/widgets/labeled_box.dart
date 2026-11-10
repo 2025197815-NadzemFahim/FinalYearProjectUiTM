@@ -11,6 +11,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'help_button.dart';
+
+/// The label above a box, with an optional (?) help button after it.
+///
+/// It always has the SAME height, even when a long label is shrunk to fit, so
+/// two boxes side by side ("Height" and "Household income / month") line up.
+class _BoxLabel extends StatelessWidget {
+  const _BoxLabel({required this.text, this.onHelp});
+  final String text;
+  final VoidCallback? onHelp;
+
+  static const double height = 26;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Flexible + FittedBox: shrink a long label to stay on one line.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(text, maxLines: 1, style: AppFonts.body(size: 15)),
+            ),
+          ),
+          if (onHelp != null) HelpButton(onTap: onHelp!),
+        ],
+      ),
+    );
+  }
+}
 
 /// The white rounded "pill" behind every box. Change the look of ALL boxes here.
 class _Pill extends StatelessWidget {
@@ -46,6 +79,7 @@ class LabeledNumberBox extends StatelessWidget {
     this.onChanged,
     this.min,
     this.max,
+    this.onHelp,
   });
 
   final String label;
@@ -55,6 +89,7 @@ class LabeledNumberBox extends StatelessWidget {
   final bool readOnly;       // BMI is calculated, not typed
   final ValueChanged<String>? onChanged;
   final num? min, max;       // valid range (the same one the API enforces)
+  final VoidCallback? onHelp; // set -> a (?) after the label opens a guide
 
   /// Empty, not a number, or outside min-max -> an error message under the box.
   String? _validate(String? v) {
@@ -70,12 +105,8 @@ class LabeledNumberBox extends StatelessWidget {
     // Column stacks its children top to bottom: label, gap, box.
     return Column(
       children: [
-        // FittedBox shrinks a long label ("Major Vessel Number") to stay on one line.
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(label, maxLines: 1, style: AppFonts.body(size: 15)),
-        ),
-        const SizedBox(height: 8), // vertical gap between label and box
+        _BoxLabel(text: label, onHelp: onHelp),
+        const SizedBox(height: 6), // vertical gap between label and box
         _Pill(
           child: TextFormField(
             controller: controller,
@@ -126,8 +157,8 @@ class LabeledChoiceBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, textAlign: TextAlign.center, style: AppFonts.body(size: 15)),
-        const SizedBox(height: 8),
+        _BoxLabel(text: label),
+        const SizedBox(height: 6),
         _Pill(
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(

@@ -18,10 +18,11 @@ import '../models/user_details.dart';
 import '../services/app_services.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/error_dialog.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/rounded_field.dart';
 import '../widgets/wave_header.dart';
-import 'login_screen.dart' show PasswordEyeButton, showErrorDialog, validateEmail;
+import 'login_screen.dart' show PasswordEyeButton, validateEmail;
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key, required this.services});
@@ -54,8 +55,26 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
-  String? _required(String? v, String what) =>
-      (v == null || v.trim().isEmpty) ? 'Enter your $what.' : null;
+  /// Not empty and not longer than [max] characters (the database allows a name
+  /// of up to 100 characters, firestore.rules).
+  String? _required(String? v, String what, {int max = 40}) {
+    final text = v?.trim() ?? '';
+    if (text.isEmpty) return 'Enter your $what.';
+    if (text.length > max) return 'At most $max characters.';
+    return null;
+  }
+
+  /// Digits, spaces, "+" and "-" only, 9 to 15 digits (e.g. 012-345 6789).
+  String? _validPhone(String? v) {
+    final text = v?.trim() ?? '';
+    if (text.isEmpty) return 'Enter your contact number.';
+    final digits = text.replaceAll(RegExp(r'[\s+\-]'), ''); // remove spaces, + and -
+    final onlyDigits = RegExp(r'^\d+$').hasMatch(digits);
+    if (!onlyDigits || digits.length < 9 || digits.length > 15) {
+      return 'Enter a phone number, e.g. 0123456789.';
+    }
+    return null;
+  }
 
   /// Opens a calendar. Only adults can be chosen: the app is for 18+, the same
   /// rule as the database (firestore.rules: 18-120).
@@ -81,17 +100,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() => _loading = true);
     String? error;
     try {
-      final profile = widget.services.profile, dob = _dob!, sex = _sex.toLowerCase();
-      final contact = _contact.text.trim();
+      final profile = widget.services.profile;
+      final dob = _dob!, sex = _sex.toLowerCase(), contact = _contact.text.trim();
+
       await widget.services.auth.register(
         firstName: _firstName.text,
         lastName: _lastName.text,
         email: _email.text,
         password: _password.text,
         // Date of birth, sex and contact are asked ONLY here; every check reuses
-        // them. register() runs this while the new account is still signed in.
-        onCreated: (uid) => profile.saveAccount(
-          uid: uid,
+        // them. register() runs this while the new account is still signed in,
+        // and removes the account again if the save fails.
+        onCreated: (user) => profile.saveAccount(
+          user: user, // the new account: uid, email, name
           dateOfBirth: dob,
           sex: sex, // 'male' / 'female', the API's spelling
           contact: contact,
@@ -201,7 +222,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           icon: Icons.phone_android,
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
-                          validator: (v) => _required(v, 'contact number'),
+                          validator: _validPhone,
                         ),
                         const SizedBox(height: 22),
                         RoundedField(

@@ -9,14 +9,17 @@ import '../theme/app_theme.dart';
 /// The three diseases the app screens for (report Section 1.6).
 /// An enum is a fixed list of choices, so a typo like "hart" is impossible.
 enum Disease {
-  heart('Heart Disease'),
-  diabetes('Diabetes Mellitus'),
-  stroke('Stroke');
+  heart('Heart Disease', Icons.favorite),
+  diabetes('Diabetes Mellitus', Icons.bloodtype),
+  stroke('Stroke', Icons.psychology);
 
-  const Disease(this.label);
+  const Disease(this.label, this.icon);
 
   /// The name shown on screen.
   final String label;
+
+  /// The icon used for this disease (e.g. on My Activity).
+  final IconData icon;
 }
 
 /// Low / moderate / high, worked out from a percentage.

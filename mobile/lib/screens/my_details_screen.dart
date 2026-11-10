@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_details.dart';
+import '../navigation/guides.dart';
 import '../services/app_services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/choice_question_field.dart';
@@ -51,8 +52,9 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return DetailsPage.showMissing(context);
     setState(() => _saving = true);
+
     // withDetails keeps the age, sex and contact from Create Account
-    await widget.services.profile.saveProfile(_saved.withDetails(
+    final profile = _saved.withDetails(
       heightCm: double.parse(_height.text),
       education: _education!,
       incomeMonthlyRm: double.parse(_income.text),
@@ -60,8 +62,13 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
       everMarried: _married!,
       workType: _work!,
       residence: _residence!,
-    ));
-    if (mounted) Navigator.of(context).pop(true);
+    );
+    final saved = await DetailsPage.trySave(
+        context, () => widget.services.profile.saveProfile(profile));
+
+    if (!mounted) return;
+    if (!saved) return setState(() => _saving = false); // stay here; the error was shown
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -85,11 +92,23 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
         // 3. Height + 5. income: two number boxes side by side
         TwoColumnGrid(children: [
           LabeledNumberBox(
-              key: const Key('height'), label: 'Height', controller: _height,
-              suffix: 'CM', decimal: true, min: 90, max: 250),
+            key: const Key('height'),
+            label: 'Height',
+            controller: _height,
+            suffix: 'CM',
+            decimal: true,
+            min: 90,
+            max: 250,
+            onHelp: () => openGuide(context, widget.services, Guides.weightBmi),
+          ),
           LabeledNumberBox(
-              key: const Key('income'), label: 'Household income / month', controller: _income,
-              suffix: 'RM', min: 0, max: 1000000),
+            key: const Key('income'),
+            label: 'Household income / month',
+            controller: _income,
+            suffix: 'RM',
+            min: 0,
+            max: 1000000,
+          ),
         ]),
         Padding(
           padding: const EdgeInsets.only(top: 6, bottom: 18),
