@@ -28,8 +28,11 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     // initState runs once, when the shell first appears (i.e. right after
-    // login), so every login starts on the Home tab.
+    // login), so every login starts on the Home tab...
     AppTabs.current.value = AppTabs.home;
+    // ...and with only this user's details and history (a previous user's are
+    // dropped before the first tab is drawn).
+    widget.services.startSession(widget.user.uid);
   }
 
   @override

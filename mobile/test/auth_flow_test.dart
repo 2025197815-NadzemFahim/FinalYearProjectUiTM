@@ -27,6 +27,12 @@ class FakeAuthService implements AuthService {
 
   static const validEmail = 'ali@demo.com';
   static const validPassword = 'password123';
+  static const otherEmail = 'mei@demo.com'; // a second person on the same device
+
+  static const _accounts = {
+    validEmail: AppUser(uid: 'u1', email: validEmail, displayName: 'Ali Ahmad'),
+    otherEmail: AppUser(uid: 'u2', email: otherEmail, displayName: 'Mei Ling'),
+  };
 
   @override
   Stream<AppUser?> authStateChanges() async* {
@@ -40,10 +46,11 @@ class FakeAuthService implements AuthService {
   @override
   Future<void> signIn({required String email, required String password}) async {
     signInCalls++;
-    if (email.trim() != validEmail || password != validPassword) {
+    final account = _accounts[email.trim()];
+    if (account == null || password != validPassword) {
       throw const AuthFailure('Incorrect email or password.');
     }
-    _user = const AppUser(uid: 'u1', email: validEmail, displayName: 'Ali Ahmad');
+    _user = account;
     _controller.add(_user);
   }
 
@@ -53,11 +60,13 @@ class FakeAuthService implements AuthService {
     required String lastName,
     required String email,
     required String password,
+    Future<void> Function(String uid)? onCreated,
   }) async {
     registerCalls++;
-    if (email.trim() == validEmail) {
+    if (_accounts.containsKey(email.trim())) {
       throw const AuthFailure('An account already exists for that email.');
     }
+    await onCreated?.call('new-${email.trim()}'); // the new account's uid
     // Like the real service: the user is NOT left signed in.
   }
 
@@ -75,7 +84,7 @@ class FakeAuthService implements AuthService {
   Future<String?> idToken() async => _user == null ? null : 'fake-token';
 }
 
-/// [details]: the user's saved details at the start (null = nothing saved yet).
+/// [details]: Ali's (u1's) saved details at the start (null = nothing saved yet).
 /// Pass [profile] instead to inspect what the screens saved.
 Future<FakeAuthService> pumpApp(WidgetTester tester,
     {UserDetails? details, ProfileService? profile}) async {
@@ -87,7 +96,7 @@ Future<FakeAuthService> pumpApp(WidgetTester tester,
 
   final auth = FakeAuthService();
   await tester.pumpWidget(
-      App(auth: auth, profile: profile ?? ProfileService(initial: details)));
+      App(auth: auth, profile: profile ?? ProfileService(initial: details, ownerUid: 'u1')));
   await tester.pumpAndSettle();
   return auth;
 }
@@ -255,6 +264,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(auth.signOutCalls, 1);
     expect(find.text('Hello'), findsOneWidget);
+  });
+
+  // ------------------------------------ Shared device: privacy on logout
+  testWidgets('after logout, the next person never sees the previous details', (tester) async {
+    final auth = await pumpApp(tester, details: sampleDetails()); // Ali's, complete
+    Future<void> logout() async {
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('logout')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-logout')));
+      await tester.pumpAndSettle();
+    }
+
+    // Ali logs out and back in: still his details (no "details missing" banner)
+    await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
+    expect(find.byKey(const Key('detailsBanner')), findsNothing);
+    await logout();
+    await typeAndLogin(tester, FakeAuthService.validEmail, FakeAuthService.validPassword);
+    expect(find.byKey(const Key('detailsBanner')), findsNothing);
+
+    // Mei logs in on the same device: none of Ali's details
+    await logout();
+    await typeAndLogin(tester, FakeAuthService.otherEmail, FakeAuthService.validPassword);
+    expect(find.text('Welcome back,\nMei!'), findsOneWidget);
+    expect(find.byKey(const Key('detailsBanner')), findsOneWidget);
+    expect(auth.signOutCalls, 2);
   });
 
   // ------------------------------------- Quick -> Deep -> History flow

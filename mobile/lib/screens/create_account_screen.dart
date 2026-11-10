@@ -81,11 +81,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() => _loading = true);
     String? error;
     try {
+      final profile = widget.services.profile, dob = _dob!, sex = _sex.toLowerCase();
+      final contact = _contact.text.trim();
       await widget.services.auth.register(
         firstName: _firstName.text,
         lastName: _lastName.text,
         email: _email.text,
         password: _password.text,
+        // Date of birth, sex and contact are asked ONLY here; every check reuses
+        // them. register() runs this while the new account is still signed in.
+        onCreated: (uid) => profile.saveAccount(
+          uid: uid,
+          dateOfBirth: dob,
+          sex: sex, // 'male' / 'female', the API's spelling
+          contact: contact,
+        ),
       );
     } on AuthFailure catch (e) {
       error = e.message;
@@ -96,13 +106,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await showErrorDialog(context, 'Could not create account', error);
       return;
     }
-    // Date of birth, sex and contact are asked ONLY here; every check reuses them.
-    await widget.services.profile.saveAccount(
-      dateOfBirth: _dob!,
-      sex: _sex.toLowerCase(), // 'male' / 'female', the API's spelling
-      contact: _contact.text.trim(),
-    );
-    if (!mounted) return;
 
     // Success: go back to Login (Table 3.12) and show a short message there.
     final messenger = ScaffoldMessenger.of(context);

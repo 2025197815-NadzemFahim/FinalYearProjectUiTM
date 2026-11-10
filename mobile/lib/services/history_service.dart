@@ -3,8 +3,10 @@
 //
 // Starts with sample entries like Figure 3.23 (Diagnosis 1-7 on four dates).
 // New deep-check results are added with add(), so the History tab updates
-// immediately. Later, replace this with reads/writes to Firestore
-// users/{uid}/deepCheckResults (docs/DATABASE.md) - screens won't change.
+// immediately. When a different person logs in, startSession() drops the
+// previous user's results (back to the samples). Later, replace this with
+// reads of Firestore users/{uid}/deepCheckResults (docs/DATABASE.md) in
+// startSession() - screens won't change.
 // =============================================================================
 import 'package:flutter/foundation.dart';
 
@@ -19,6 +21,17 @@ class HistoryService {
 
   /// A ValueNotifier: the History screen rebuilds automatically when it changes.
   final ValueNotifier<List<HistoryEntry>> entries = ValueNotifier(const []);
+
+  String? _uid; // whose results are in [entries] (null = only the samples)
+
+  /// Called at every login: a different person than last time sees only the
+  /// samples, never the previous user's results.
+  void startSession(String uid) {
+    if (uid != _uid) {
+      entries.value = _sampleEntries();
+      _uid = uid;
+    }
+  }
 
   /// Save a new deep-check result (flowchart: "Save the prediction result in Database").
   void add(RiskResult result) {

@@ -39,11 +39,16 @@ abstract class AuthService {
 
   /// FR-02 Register (Table 3.12): create the account. Afterwards the user is
   /// signed out again, because the use case returns them to the Login screen.
+  ///
+  /// [onCreated] runs with the new account's uid while it is STILL signed in,
+  /// just before that sign-out. It is the only moment the app may write the
+  /// new user's profile (the Firestore rules only let the signed-in owner write).
   Future<void> register({
     required String firstName,
     required String lastName,
     required String email,
     required String password,
+    Future<void> Function(String uid)? onCreated,
   });
 
   /// Forgot Password (Figure 3.17): email the user a reset link.
@@ -87,15 +92,22 @@ class FirebaseAuthService implements AuthService {
     required String lastName,
     required String email,
     required String password,
+    Future<void> Function(String uid)? onCreated,
   }) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
           email: email.trim(), password: password);
-      await cred.user?.updateDisplayName('${firstName.trim()} ${lastName.trim()}');
-      // Contact number, age and sex belong in the Firestore profile
-      // (users/{uid}); that needs the cloud_firestore package - see
-      // docs/MOBILE_GUIDE.md section 4, step 4.
-      await _auth.signOut(); // Table 3.12: "redirects the user to the Login Interface"
+      try {
+        await cred.user?.updateDisplayName('${firstName.trim()} ${lastName.trim()}');
+        // Date of birth, sex and contact are saved here (Create Account passes
+        // ProfileService.saveAccount), while the new user is still signed in.
+        final uid = cred.user?.uid;
+        if (uid != null) await onCreated?.call(uid);
+      } finally {
+        // "finally" = even if saving the details failed, never leave the new
+        // user signed in. Table 3.12: "redirects the user to the Login Interface"
+        await _auth.signOut();
+      }
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e.code));
     }

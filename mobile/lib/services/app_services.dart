@@ -19,4 +19,11 @@ class AppServices {
   final PredictionService predictions;
   final HistoryService history;
   final ProfileService profile; // My details, Medical history, Lifestyle check
+
+  /// Called once per login (HomeShell). If a different person signs in on the
+  /// same device, each service forgets the previous user's data first.
+  void startSession(String uid) {
+    profile.startSession(uid);
+    history.startSession(uid);
+  }
 }

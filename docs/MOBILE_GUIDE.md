@@ -50,7 +50,7 @@ The app automatically uses `10.0.2.2` — the Android emulator's address for you
 API with `uvicorn backend.app.main:app --host 0.0.0.0`. The same address is used for both
 (`config/api_config.dart`).
 
-**Tests** (no emulator or API needed, ~10 s): `flutter test` → expect `All tests passed!` (32 tests).
+**Tests** (no emulator or API needed, ~10 s): `flutter test` → expect `All tests passed!` (37 tests).
 **Lint:** `flutter analyze` → expect `No issues found!`
 
 ---
@@ -108,12 +108,23 @@ More concepts, explained for this project: `docs/UI_GUIDE.md` §7.
 | Service | Now | Next |
 |---|---|---|
 | `ApiPredictionService` (`services/prediction_service.dart`) | ✅ **real AI**: `POST /predict/quick` and `/predict/deep/{disease}`; sends the login token so deep checks are saved; clear messages for every failure. Requests are built in `models/api_payloads.dart` | the "no stress test" heart check gets its endpoint after the reduced model (H1) is trained and approved; until then it shows a message |
-| `ProfileService` | in memory | **U2 (you):** read/write `users/{uid}` (layout in `docs/lifestyle_check_proposal.md` section D) |
-| `HistoryService` | in memory (7 samples + this session's checks) | read `users/{uid}/deepCheckResults` ordered by `created_at` (`cloud_firestore`), or `GET /history` |
+| `ProfileService` | in memory, cleared when a different person logs in | **U2 (you):** read/write `users/{uid}` (layout in `docs/lifestyle_check_proposal.md` section D) |
+| `HistoryService` | in memory (7 samples + this session's checks), cleared when a different person logs in | read `users/{uid}/deepCheckResults` ordered by `created_at` (`cloud_firestore`), or `GET /history`, in `startSession()` |
+
+**Shared device.** At every login `HomeShell` calls `AppServices.startSession(uid)`. If it's a
+different person from the last one, the saved details and this session's results are dropped
+*before* the first tab is drawn, so the next person never sees them (`test/session_test.dart` and
+the "next person never sees" widget test). The same person logging back in keeps them.
 
 **Saving the profile to Firestore (U2).** Create Account asks **date of birth**, sex and contact
-(the only place they are asked). Write them to `users/{uid}` while the new user is still signed in,
-i.e. inside `register()` before its `signOut()`. Store `dateOfBirth` (a timestamp) instead of
+(the only place they are asked). The call sites are already in place, so you only fill in the
+bodies in `services/profile_service.dart`:
+- `saveAccount(uid: ...)` is called by `register()` through `onCreated`, **while the new user is
+  still signed in** (just before its `signOut()`), which is when the rules allow the write.
+- `load(uid)` is called at every login by `startSession()`; read `users/{uid}` and set `details`.
+- `saveProfile` / `saveHistory` / `saveLifestyle` / `saveLastWeight` run while signed in; use `uid`.
+
+Store `dateOfBirth` (a timestamp) instead of
 `userAge`: the rules currently require `userAge` (18-120) and allow only 5 fields, so extend
 `validProfile` in `firebase/firestore.rules` with type/range checks for every new field, and update
 `docs/DATABASE.md` and the ERD. Needs `flutter pub add cloud_firestore` and, in `main.dart`,

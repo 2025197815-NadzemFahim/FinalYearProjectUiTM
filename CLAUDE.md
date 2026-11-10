@@ -46,7 +46,9 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
   `docs/MOBILE_GUIDE.md` = running + connecting real data. lib/: `models/` (data), `screens/` (one per
   mockup; `auth_gate.dart` Login vs `home_shell.dart` tabs), `widgets/` (shared UI), `services/`
   (auth = Firebase; prediction = REAL API via `ApiPredictionService` (`DemoPredictionService` in
-  tests / `--dart-define=USE_DEMO_PREDICTIONS=true`); history + profile = in-memory until U2),
+  tests / `--dart-define=USE_DEMO_PREDICTIONS=true`); history + profile = in-memory until U2, and
+  `AppServices.startSession(uid)` (HomeShell, every login) drops the previous user's data when a
+  different person logs in),
   `config/api_config.dart` = API address per device, `models/api_payloads.dart` = answers -> exact API request bodies,
   `theme/app_theme.dart` (AppColors, AppFonts), `navigation/app_tabs.dart`, `config/firebase_config.dart`
 - Root .gitignore is the Python template (ignores every `lib/`); `!mobile/lib/` re-includes Flutter code
@@ -65,8 +67,8 @@ Final-year capstone (CSP600), UiTM Shah Alam. I'm the sole developer.
 - Backend on emulators: set `$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"` and
   `$env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` before `uvicorn`; without them the DB is disabled
   and deep checks are just not saved
-- Flutter (in `mobile/`): `flutter run -d chrome` (emulators + `uvicorn` running), `flutter test` (32 tests:
-  11 payload mapping + 7 prediction service + 14 widget, no emulator or API needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
+- Flutter (in `mobile/`): `flutter run -d chrome` (emulators + `uvicorn` running), `flutter test` (37 tests:
+  11 payload mapping + 7 prediction service + 4 session (shared-device privacy) + 15 widget, no emulator or API needed), `flutter analyze`. Android emulator reaches the PC at 10.0.2.2 (handled in config)
 - DB tool: `python -m backend.db_tool seed|users|history <email>|token <email>|reset`
 - DB tests (emulators running): `python -m backend.tests.test_db` (20 checks: rules + API + DB)
 - Evaluation of saved models (no retraining): `python -m ml.ci --layer1 --layer2 all` (bootstrap 95%

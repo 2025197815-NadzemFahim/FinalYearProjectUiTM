@@ -28,7 +28,9 @@ class AuthGate extends StatelessWidget {
         }
         final user = snapshot.data;
         if (user == null) return LoginScreen(services: services);
-        return HomeShell(services: services, user: user);
+        // The key makes a different user always get a NEW HomeShell, so its
+        // initState (which clears the previous user's data) runs again.
+        return HomeShell(key: ValueKey(user.uid), services: services, user: user);
       },
     );
   }
