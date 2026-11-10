@@ -1,0 +1,19 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+
+linter:
+  rules:
+    # It would turn  ProfileService({db}) : _db = db  into the newer
+    # "private named parameter" form, which is harder to read when learning.
+    prefer_initializing_formals: false
+
+# `dart format lib test` wraps lines at 100 characters (default 80), the same
+# width the code was written for.
+formatter:
+  page_width: 100

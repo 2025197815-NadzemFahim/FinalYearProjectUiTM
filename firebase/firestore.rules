@@ -1,0 +1,146 @@
+rules_version = '2';
+
+// Firestore security rules (apply to the Flutter app / client SDKs only).
+// The FastAPI backend uses the Admin SDK, which bypasses these rules - that is
+// how deep-check results get written while the app itself cannot write them.
+//
+// Data layout (see docs/DATABASE.md, and mobile/lib/services/firestore_maps.dart):
+//   users/{userID}                                  <- ERD entity: User
+//        .profile   { ... }   My details            (readings 3-9)
+//        .history   { ... }   Medical history       (readings 10-14)
+//        .lifestyle { ... }   Lifestyle check       (readings 15-19)
+//   users/{userID}/deepCheckResults/{resultID}      <- ERD: DeepCheckResult
+//        .diseaseInput { ... }                      <- ERD: DiseaseInput + Heart/Stroke/DiabetesInput
+//
+// The number ranges below are the same ones the app's forms allow.
+// Change a field in the app -> change it here too, or the save is refused.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+
+    // A whole or decimal number from lo to hi
+    function numberIn(v, lo, hi) { return v is number && v >= lo && v <= hi; }
+
+    // A text of 1 to max characters
+    function textUpTo(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+
+    // Exactly these keys: none missing, none extra
+    function hasExactly(m, keys) { return m.keys().hasAll(keys) && m.keys().hasOnly(keys); }
+
+    // --------------------------------------------- Create Account (FR-02)
+
+    // Age 18-120, worked out from the date of birth. 18 years = 6574 days and
+    // 121 years = 44195 days (leap days included). This allows about a day of
+    // slack (time zones); the app itself checks the exact age.
+    function validDateOfBirth(dob) {
+      return dob is timestamp
+          && dob <= request.time - duration.value(6574, 'd')
+          && dob > request.time - duration.value(44195, 'd');
+    }
+
+    // ------------------------------------- the three answer maps (FR-05)
+
+    // My details (readings 3-9). Saved as a whole, so every answer is required.
+    function validMyDetails(m) {
+      return m is map
+          && hasExactly(m, ['heightCm', 'education', 'incomeMonthlyRm', 'healthCoverage',
+                            'everMarried', 'workType', 'residence'])
+          && numberIn(m.heightCm, 90, 250)
+          && m.education in ['none', 'primary', 'someSecondary', 'spm', 'postSecondary', 'degree']
+          && numberIn(m.incomeMonthlyRm, 0, 1000000)
+          && m.healthCoverage is bool
+          && m.everMarried is bool
+          && m.workType in ['private', 'selfEmployed', 'government', 'neverWorked']
+          && m.residence in ['urban', 'rural'];
+    }
+
+    // Medical history (readings 10-14): five yes/no answers + when they were given.
+    function validMedicalHistory(m) {
+      return m is map
+          && hasExactly(m, ['highBloodPressure', 'highCholesterol', 'cholesterolChecked5y',
+                            'heartDisease', 'difficultyWalking', 'updatedAt'])
+          && m.highBloodPressure is bool
+          && m.highCholesterol is bool
+          && m.cholesterolChecked5y is bool
+          && m.heartDisease is bool
+          && m.difficultyWalking is bool
+          && m.updatedAt is timestamp;
+    }
+
+    // Lifestyle check (readings 15-19). drinksPerWeek is there only for people
+    // who drink (1-200 a week), and missing for people who don't.
+    function validLifestyle(m) {
+      let food = ['twoPlusDaily', 'onceDaily', 'fewTimesWeek', 'rarely'];
+      let always = ['smoked100', 'smokesNow', 'activity', 'fruit', 'vegetables',
+                    'drinksAlcohol', 'updatedAt'];
+      return m is map
+          && m.keys().hasAll(always)
+          && m.keys().hasOnly(always.concat(['drinksPerWeek']))
+          && m.smoked100 is bool
+          && m.smokesNow is bool
+          && m.activity in ['threePlusWeekly', 'oneTwoWeekly', 'fewTimesMonth', 'none']
+          && m.fruit in food
+          && m.vegetables in food
+          && m.updatedAt is timestamp
+          && ((m.drinksAlcohol == true && 'drinksPerWeek' in m
+                  && m.drinksPerWeek is int && m.drinksPerWeek >= 1 && m.drinksPerWeek <= 200)
+              || (m.drinksAlcohol == false && !('drinksPerWeek' in m)));
+    }
+
+    // ------------------------------------------------- the whole user document
+
+    function validUser(d) {
+      let required = ['userName', 'userEmail', 'userSex', 'userCreate_at',
+                      'dateOfBirth', 'contactNumber'];
+      let optional = ['profile', 'history', 'lifestyle', 'lastWeightKg'];
+      return d.keys().hasAll(required)
+          && d.keys().hasOnly(required.concat(optional))
+          && textUpTo(d.userName, 100)
+          && d.userEmail is string && d.userEmail == request.auth.token.email
+          && d.userSex in ['male', 'female']
+          && d.userCreate_at is timestamp
+          && validDateOfBirth(d.dateOfBirth)
+          && textUpTo(d.contactNumber, 20)
+          // optional = not there yet, or valid
+          && (!('profile' in d) || validMyDetails(d.profile))
+          && (!('history' in d) || validMedicalHistory(d.history))
+          && (!('lifestyle' in d) || validLifestyle(d.lifestyle))
+          && (!('lastWeightKg' in d) || numberIn(d.lastWeightKg, 20, 350));
+    }
+
+    // ------------------------------------------------------------------ rules
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      // created once, at registration; the timestamp must be the server's
+      allow create: if isOwner(userId)
+                    && validUser(request.resource.data)
+                    && request.resource.data.userCreate_at == request.time;
+      // edits (My details, Medical history, Lifestyle, last weight) may not
+      // change the email or the creation time
+      allow update: if isOwner(userId)
+                    && validUser(request.resource.data)
+                    && request.resource.data.userEmail == resource.data.userEmail
+                    && request.resource.data.userCreate_at == resource.data.userCreate_at;
+      allow delete: if false;
+
+      // FR-10 View Prediction History: users read only their own results.
+      // Writes come only from the backend (Admin SDK), never from the app,
+      // so a user cannot fake a risk percentage.
+      match /deepCheckResults/{resultId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // Everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

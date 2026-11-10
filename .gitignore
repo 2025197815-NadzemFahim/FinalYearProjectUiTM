@@ -218,3 +218,29 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- FYP project-specific ----
+# Firebase / Google credentials (never commit)
+serviceAccountKey.json
+*serviceAccount*.json
+google-services.json
+GoogleService-Info.plist
+
+# Datasets (raw and processed)
+data/
+
+# Trained models and training outputs (can exceed GitHub's 100 MB limit)
+*.joblib
+*.pkl
+ml/models/
+ml/reports/
+catboost_info/
+
+# Firebase emulator: local data and logs
+firebase/emulator-data/
+firebase/*-debug.log
+*-debug.log
+
+# The Python template above ignores every "lib/" folder - but Flutter keeps all
+# its source code in mobile/lib/. Re-include it.
+!mobile/lib/

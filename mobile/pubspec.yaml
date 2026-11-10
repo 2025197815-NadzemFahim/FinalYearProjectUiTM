@@ -1,0 +1,28 @@
+name: chronic_disease_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  cloud_firestore: ^6.10.2
+  firebase_auth: ^6.7.0
+  firebase_core: ^4.15.0
+  flutter:
+    sdk: flutter
+  google_fonts: ^9.0.0
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Files bundled inside the app (work offline). Health guides: task U5.
+  assets:
+    - assets/tutorials.json
